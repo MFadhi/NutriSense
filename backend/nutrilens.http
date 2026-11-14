@@ -1,0 +1,142 @@
+### NutriLens API — HTTP Requests
+### Use with VS Code REST Client, JetBrains HTTP Client, or similar
+
+@base = http://localhost:5000/api/v1
+@access_token = <paste access token here>
+@refresh_token = <paste refresh token here>
+
+###
+# Register a new user
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "demo@nutrilens.app",
+  "password": "password123"
+}
+
+###
+# Login
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "demo@nutrilens.app",
+  "password": "password123"
+}
+
+###
+# Get current user + profile
+GET {{base}}/auth/me
+Authorization: Bearer {{access_token}}
+
+###
+# Update profile
+PATCH {{base}}/auth/me
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "diet_type": "veg",
+  "age": 28,
+  "gender": "male",
+  "height_cm": 175.0,
+  "weight_kg": 70.0,
+  "activity_level": "moderately_active",
+  "goal": "lose weight",
+  "allergies": ["milk", "peanut"]
+}
+
+###
+# Delete all logs and profile data (keeps account)
+DELETE {{base}}/auth/me/data
+Authorization: Bearer {{access_token}}
+
+###
+# Refresh access token
+POST {{base}}/auth/refresh
+Authorization: Bearer {{refresh_token}}
+
+###
+# Search foods
+GET {{base}}/foods?q=paneer
+Authorization: Bearer {{access_token}}
+
+###
+# Search with filters
+GET {{base}}/foods?q=dal&diet=veg&category=mains&limit=10&offset=0
+
+###
+# List all categories
+GET {{base}}/foods/categories
+
+###
+# Get food detail by ID
+GET {{base}}/foods/1
+Authorization: Bearer {{access_token}}
+
+###
+# Get recently logged foods
+GET {{base}}/foods/recent
+Authorization: Bearer {{access_token}}
+
+###
+# Log a food (by food_id + portion)
+POST {{base}}/logs
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "food_id": 1,
+  "meal": "lunch",
+  "log_date": "2026-11-14",
+  "quantity": 1
+}
+
+###
+# Log a food (manual entry, no food_id)
+POST {{base}}/logs
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "food_name": "Homemade dal",
+  "meal": "dinner",
+  "log_date": "2026-11-14",
+  "quantity": 1,
+  "kcal": 120,
+  "protein_g": 6,
+  "carbs_g": 18,
+  "fat_g": 2,
+  "fibre_g": 3
+}
+
+###
+# Get logs for a date
+GET {{base}}/logs?date=2026-11-14
+Authorization: Bearer {{access_token}}
+
+###
+# Update a log entry (change quantity)
+PATCH {{base}}/logs/1
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "quantity": 2
+}
+
+###
+# Update a log entry (change meal)
+PATCH {{base}}/logs/1
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "meal": "snack"
+}
+
+###
+# Delete a log entry
+DELETE {{base}}/logs/1
+Authorization: Bearer {{access_token}}
