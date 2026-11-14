@@ -10,7 +10,7 @@ import {
   DEFAULT_NOTIFICATIONS,
 } from "../data/defaults";
 import { useLocalStorage } from "../hooks/useLocalStorage";
-import { resetDemoData } from "../services/storage";
+import { resetAppData } from "../services/storage";
 
 const AppContext = createContext(null);
 export const useApp = () => useContext(AppContext);
@@ -33,20 +33,46 @@ export function guessCategory(name) {
 }
 
 export function AppProvider({ children }) {
-  const [profile, setProfile] = useLocalStorage("nutrilens_profile", DEFAULT_PROFILE);
-  const [targets, setTargets] = useLocalStorage("nutrilens_targets", DEFAULT_TARGETS);
-  const [prefs, setPrefs] = useLocalStorage("nutrilens_prefs", DEFAULT_PREFS);
-  const [diary, setDiary] = useLocalStorage("nutrilens_diary", DEFAULT_DIARY);
-  const [water, setWater] = useLocalStorage("nutrilens_water_ml", 1500);
-  const [pantry, setPantry] = useLocalStorage("nutrilens_pantry", DEFAULT_PANTRY);
-  const [shopping, setShopping] = useLocalStorage("nutrilens_shopping", [
-    { id: "sh1", name: "Ghee", category: "Dairy", qty: "200 ml", purchased: false, source: "Vegetable Pulao" },
-    { id: "sh2", name: "Lettuce", category: "Vegetables", qty: "1 head", purchased: false, source: "Grilled Chicken Salad" },
-    { id: "sh3", name: "Feta Cheese", category: "Dairy", qty: "100 g", purchased: true, source: "Mediterranean Chicken Bowl" },
-  ]);
-  const [reports, setReports] = useLocalStorage("nutrilens_reports", []);
-  const [notifications, setNotifications] = useLocalStorage("nutrilens_notifs", DEFAULT_NOTIFICATIONS);
+  const [auth, setAuth] = useLocalStorage("nutrisense_auth", {
+    token: null,
+    refreshToken: null,
+    user: null,
+    isAuthenticated: false,
+  });
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+
+  const [profile, setProfile] = useLocalStorage("nutrisense_profile", DEFAULT_PROFILE);
+  const [targets, setTargets] = useLocalStorage("nutrisense_targets", DEFAULT_TARGETS);
+  const [prefs, setPrefs] = useLocalStorage("nutrisense_prefs", DEFAULT_PREFS);
+  const [diary, setDiary] = useLocalStorage("nutrisense_diary", DEFAULT_DIARY);
+  const [water, setWater] = useLocalStorage("nutrisense_water_ml", 0);
+  const [pantry, setPantry] = useLocalStorage("nutrisense_pantry", DEFAULT_PANTRY);
+  const [shopping, setShopping] = useLocalStorage("nutrisense_shopping", []);
+  const [reports, setReports] = useLocalStorage("nutrisense_reports", []);
+  const [notifications, setNotifications] = useLocalStorage("nutrisense_notifs", DEFAULT_NOTIFICATIONS);
   const [toasts, setToasts] = useState([]);
+
+  /* ------------------------------ Auth -------------------------------- */
+  const login = useCallback(
+    (token, refreshToken, user) => {
+      setAuth({ token, refreshToken, user, isAuthenticated: true });
+      if (user) {
+        setProfile((p) => ({
+          ...p,
+          email: user.email || p.email,
+          name: user.name || (user.email ? user.email.split("@")[0] : p.name),
+          diet: user.diet ? [user.diet] : p.diet,
+        }));
+      }
+    },
+    [setAuth, setProfile]
+  );
+
+  const logout = useCallback(() => {
+    setAuth({ token: null, refreshToken: null, user: null, isAuthenticated: false });
+    setProfile(DEFAULT_PROFILE);
+    setToasts((t) => [...t, { id: uid("t"), message: "Signed out successfully." }]);
+  }, [setAuth, setProfile]);
 
   /* ------------------------------ Toasts ------------------------------ */
   const toast = useCallback((message) => {
@@ -210,12 +236,13 @@ export function AppProvider({ children }) {
   );
 
   /* ------------------------------- Reset ------------------------------ */
-  const resetDemo = useCallback(() => {
-    resetDemoData();
+  const resetApp = useCallback(() => {
+    resetAppData();
     window.location.reload();
   }, []);
 
   const value = {
+    auth, authModalOpen, setAuthModalOpen, login, logout,
     profile, setProfile,
     targets, setTargets,
     prefs, setPrefs,
@@ -227,7 +254,8 @@ export function AppProvider({ children }) {
     reports, setReports,
     notifications, unreadCount, markAllRead,
     toasts, toast,
-    resetDemo,
+    resetDemo: resetApp,
+    resetApp,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

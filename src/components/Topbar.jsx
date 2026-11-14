@@ -8,6 +8,8 @@ import {
   CloudSun,
   Droplets,
   FileText,
+  LogIn,
+  LogOut,
   Menu,
   RotateCcw,
   Search,
@@ -21,6 +23,7 @@ import { RECIPES } from "../data/recipes";
 import { WEATHER } from "../services/weather";
 import { NAV } from "./Sidebar";
 import { Thumb } from "./ui";
+import AuthModal from "./AuthModal";
 
 const NOTIF_ICONS = { droplets: Droplets, chef: ChefHat, file: FileText };
 
@@ -37,7 +40,7 @@ function useOutside(ref, onClose) {
 export default function Topbar({ onMenu }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { profile, notifications, unreadCount, markAllRead, resetDemo } = useApp();
+  const { profile, notifications, unreadCount, markAllRead, resetDemo, auth, authModalOpen, setAuthModalOpen, logout } = useApp();
 
   const [q, setQ] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -195,53 +198,67 @@ export default function Topbar({ onMenu }) {
             )}
           </div>
 
-          {/* Profile */}
-          <div ref={profileRef} className="relative">
+          {/* Profile / Auth */}
+          {auth?.isAuthenticated ? (
+            <div ref={profileRef} className="relative">
+              <button
+                onClick={() => setProfileOpen((o) => !o)}
+                className="flex items-center gap-2.5 rounded-xl border border-line bg-white py-1.5 pr-2.5 pl-1.5 shadow-sm transition-all hover:border-leaf-300 hover:bg-leaf-75"
+              >
+                <img src={profile.avatar} alt={profile.name} className="h-7 w-7 rounded-lg object-cover" />
+                <span className="hidden text-xs font-extrabold text-ink sm:block">{profile.name.split(" ")[0]}</span>
+                <ChevronDown size={13} className="text-mist" />
+              </button>
+              {profileOpen && (
+                <div className="dropdown absolute top-full right-0 z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-line bg-white shadow-xl">
+                  <div className="border-b border-line px-4 py-3">
+                    <p className="truncate text-sm font-extrabold text-ink">{profile.name}</p>
+                    <p className="truncate text-[11px] font-medium text-mist">{profile.email}</p>
+                  </div>
+                  <div className="p-1.5">
+                    <button
+                      onClick={() => {
+                        setProfileOpen(false);
+                        navigate("/settings");
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-bold text-ink transition-colors hover:bg-leaf-75"
+                    >
+                      <Settings size={14} className="text-leaf-500" /> Profile & settings
+                    </button>
+                    <button
+                      onClick={() => {
+                        setProfileOpen(false);
+                        navigate("/nutrition");
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-bold text-ink transition-colors hover:bg-leaf-75"
+                    >
+                      <User size={14} className="text-leaf-500" /> My food diary
+                    </button>
+                    <button
+                      onClick={() => {
+                        setProfileOpen(false);
+                        logout();
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-bold text-red-500 transition-colors hover:bg-red-50"
+                    >
+                      <LogOut size={14} /> Sign out
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
             <button
-              onClick={() => setProfileOpen((o) => !o)}
-              className="flex items-center gap-2.5 rounded-xl border border-line bg-white py-1.5 pr-2.5 pl-1.5 shadow-sm transition-all hover:border-leaf-300 hover:bg-leaf-75"
+              onClick={() => setAuthModalOpen(true)}
+              className="btn btn-sm btn-primary shadow-xs"
             >
-              <img src={profile.avatar} alt={profile.name} className="h-7 w-7 rounded-lg object-cover" />
-              <span className="hidden text-xs font-extrabold text-ink sm:block">{profile.name.split(" ")[0]}</span>
-              <ChevronDown size={13} className="text-mist" />
+              <LogIn size={14} /> Sign In
             </button>
-            {profileOpen && (
-              <div className="dropdown absolute top-full right-0 z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-line bg-white shadow-xl">
-                <div className="border-b border-line px-4 py-3">
-                  <p className="truncate text-sm font-extrabold text-ink">{profile.name}</p>
-                  <p className="truncate text-[11px] font-medium text-mist">{profile.email}</p>
-                </div>
-                <div className="p-1.5">
-                  <button
-                    onClick={() => {
-                      setProfileOpen(false);
-                      navigate("/settings");
-                    }}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-bold text-ink transition-colors hover:bg-leaf-75"
-                  >
-                    <Settings size={14} className="text-leaf-500" /> Profile & settings
-                  </button>
-                  <button
-                    onClick={() => {
-                      setProfileOpen(false);
-                      navigate("/nutrition");
-                    }}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-bold text-ink transition-colors hover:bg-leaf-75"
-                  >
-                    <User size={14} className="text-leaf-500" /> My food diary
-                  </button>
-                  <button
-                    onClick={resetDemo}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-bold text-red-500 transition-colors hover:bg-red-50"
-                  >
-                    <RotateCcw size={14} /> Reset demo data
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </div>
+
+      <AuthModal open={authModalOpen} onClose={() => setAuthModalOpen(false)} />
     </header>
   );
 }

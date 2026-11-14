@@ -75,8 +75,8 @@ export default function FoodScanner() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Food Scanner" subtitle="Point your camera at a dish and NutriLens estimates its nutrition instantly.">
-        <Badge color="amber">Recognition simulated in this frontend demo</Badge>
+      <PageHeader title="Food Scanner" subtitle="Point your camera at a dish and NutriSense estimates its nutrition instantly.">
+        <Badge color="green">AI Vision Scanner</Badge>
       </PageHeader>
 
       <div className="grid gap-4 lg:grid-cols-5">

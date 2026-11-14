@@ -98,26 +98,34 @@ export default function Recipes() {
                 </span>
               </button>
               <div className="flex flex-1 flex-col p-4">
-                <p className="text-[15px] font-extrabold tracking-tight text-ink">{r.name}</p>
-                <p className="mt-0.5 text-[11px] font-semibold text-mist">{r.tags.join(" · ")}</p>
+                <p className="text-[15px] font-extrabold tracking-tight text-ink line-clamp-1" title={r.name}>{r.name}</p>
+                <p className="mt-0.5 text-[11px] font-semibold text-mist truncate">{r.tags.join(" · ")}</p>
                 <div className="mt-3">
                   <div className="mb-1 flex justify-between text-[10.5px] font-extrabold">
                     <span className="text-mist uppercase tracking-wide">Pantry match</span>
-                    <span className="text-leaf-600">{s.have}/{s.total}</span>
+                    <span className="text-leaf-600 font-extrabold">{s.have}/{s.total}</span>
                   </div>
                   <ProgressBar value={s.have} max={s.total} height={6} />
                 </div>
-                {s.missing.length > 0 && (
-                  <div className="mt-2.5 flex flex-wrap gap-1.5">
-                    {s.missing.slice(0, 2).map((m) => (
-                      <Badge key={m.name} color="amber">{m.name}</Badge>
-                    ))}
-                    {s.missing.length > 2 && <Badge color="gray">+{s.missing.length - 2} more</Badge>}
-                  </div>
-                )}
-                <button className="btn btn-outline btn-sm mt-4 w-full" onClick={() => setSelected(r)}>
-                  View recipe
-                </button>
+                <div className="mt-3 min-h-[26px] flex flex-wrap items-center gap-1.5">
+                  {s.missing.length > 0 ? (
+                    <>
+                      {s.missing.slice(0, 2).map((m) => (
+                        <Badge key={m.name} color="amber">{m.name}</Badge>
+                      ))}
+                      {s.missing.length > 2 && <Badge color="gray">+{s.missing.length - 2} more</Badge>}
+                    </>
+                  ) : (
+                    <span className="flex items-center gap-1.5 text-[11px] font-bold text-leaf-600">
+                      <CheckCircle2 size={12} /> All ingredients in pantry
+                    </span>
+                  )}
+                </div>
+                <div className="mt-auto pt-4">
+                  <button className="btn btn-outline btn-sm w-full font-bold" onClick={() => setSelected(r)}>
+                    View recipe
+                  </button>
+                </div>
               </div>
             </Card>
           );

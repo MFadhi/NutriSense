@@ -1,16 +1,16 @@
 import { IMAGES } from "./foods";
 
-/** Demo user profile — editable from the Settings page. */
+/** Initial user profile */
 export const DEFAULT_PROFILE = {
-  name: "Ananya Sharma",
-  email: "ananya.sharma@example.com",
-  age: 23,
-  height: 165, // cm
-  weight: 58, // kg
+  name: "Guest",
+  email: "",
+  age: 25,
+  height: 170, // cm
+  weight: 65, // kg
   activity: "Moderately active",
   avatar: IMAGES.avatar,
-  diet: ["Vegetarian", "High-protein"],
-  goals: ["Weight management", "Better energy"],
+  diet: ["Vegetarian"],
+  goals: ["Balanced nutrition", "Better energy"],
 };
 
 /** Default daily nutrition targets. */
@@ -30,42 +30,13 @@ export const DEFAULT_PREFS = {
   newRecipes: true,
 };
 
-/** Pre-logged sample meals so the dashboard feels alive on first load. */
+/** Fresh, empty diary — no pre-logged demo meals */
 export const DEFAULT_DIARY = {
-  breakfast: [
-    { id: "b1", foodId: "oats-bowl", servings: 1, time: "8:15 AM" },
-    { id: "b2", foodId: "banana", servings: 1, time: "8:20 AM" },
-    { id: "b3", foodId: "greek-yogurt", servings: 1, time: "8:25 AM" },
-    { id: "b4", foodId: "honey", servings: 1, time: "8:25 AM" },
-  ],
+  breakfast: [],
   lunch: [],
-  snacks: [{ id: "s1", foodId: "berry-smoothie", servings: 1, time: "11:05 AM" }],
+  snacks: [],
   dinner: [],
 };
 
-export const DEFAULT_NOTIFICATIONS = [
-  {
-    id: "n1",
-    icon: "droplets",
-    title: "Hydration reminder",
-    desc: "You are 1 L away from today's water goal. Keep sipping!",
-    time: "20 min ago",
-    read: false,
-  },
-  {
-    id: "n2",
-    icon: "chef",
-    title: "New recipe match",
-    desc: "Fruit Smoothie is fully cookable with your pantry items.",
-    time: "1 h ago",
-    read: false,
-  },
-  {
-    id: "n3",
-    icon: "file",
-    title: "Lab report analysed",
-    desc: "Sample values were extracted from your blood test report.",
-    time: "Yesterday",
-    read: true,
-  },
-];
+/** Fresh empty notifications list */
+export const DEFAULT_NOTIFICATIONS = [];

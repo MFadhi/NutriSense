@@ -47,7 +47,7 @@ export default function Sidebar({ open, onClose }) {
             <Leaf size={20} strokeWidth={2.2} />
           </div>
           <div className="min-w-0">
-            <p className="font-display text-[19px] leading-tight font-semibold tracking-tight text-leaf-800">NutriLens</p>
+            <p className="font-display text-[19px] leading-tight font-semibold tracking-tight text-leaf-800">NutriSense</p>
             <p className="text-[9.5px] font-bold tracking-[0.14em] text-leaf-600/80 uppercase">Smart Nutrition Engine</p>
           </div>
           <button className="icon-btn ml-auto lg:hidden" onClick={onClose} aria-label="Close menu">
@@ -103,7 +103,7 @@ export default function Sidebar({ open, onClose }) {
         </div>
 
         <p className="px-5 pb-5 text-[10px] font-semibold tracking-wide text-leaf-700/50">
-          Frontend demo v1.0 — sample data
+          NutriSense Platform v1.0
         </p>
       </aside>
     </>

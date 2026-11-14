@@ -1,14 +1,12 @@
 /**
- * LocalStorage service layer.
- * Keeps the data-access shape ready to be swapped for a Python Flask + MySQL
- * backend later — pages never touch localStorage directly.
+ * LocalStorage service layer for NutriSense.
  */
-export const LS_PREFIX = "nutrilens_";
+export const LS_PREFIX = "nutrisense_";
 
-export function resetDemoData() {
+export function resetAppData() {
   try {
     Object.keys(localStorage)
-      .filter((k) => k.startsWith(LS_PREFIX))
+      .filter((k) => k.startsWith(LS_PREFIX) || k.startsWith("nutrilens_"))
       .forEach((k) => localStorage.removeItem(k));
   } catch {
     /* ignore */

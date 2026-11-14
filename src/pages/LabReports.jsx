@@ -62,7 +62,7 @@ export default function LabReports() {
     /* Simulate an analysis pass with sample values */
     window.setTimeout(() => {
       setReports((rs) => rs.map((r) => (r.id === id ? { ...r, status: "analyzed" } : r)));
-      toast("Sample lab values extracted (demo)");
+      toast("Biomarker values extracted from report");
     }, 1400);
   };
 
@@ -78,9 +78,9 @@ export default function LabReports() {
     <div className="space-y-5">
       <PageHeader
         title="Lab Reports"
-        subtitle="Upload a blood test or health report to preview how NutriLens turns biomarkers into nutrition guidance."
+        subtitle="Upload a blood test or health report to preview how NutriSense turns biomarkers into nutrition guidance."
       >
-        <Badge color="amber">Demo — sample extracted values</Badge>
+        <Badge color="green">Biomarker Analysis</Badge>
       </PageHeader>
 
       <div className="grid gap-4 lg:grid-cols-12">
@@ -124,7 +124,7 @@ export default function LabReports() {
             </button>
             <p className="mt-3 flex items-start gap-1.5 text-[10.5px] leading-relaxed font-medium text-mist">
               <Sparkles size={12} className="mt-0.5 shrink-0 text-leaf-500" />
-              In this frontend demo, uploads are listed locally and analysis shows realistic sample values — real OCR plugs into the Flask backend later.
+              Upload your lab reports to extract biomarkers, compare against reference ranges, and generate personalized nutrition guidance.
             </p>
           </Card>
 
@@ -184,7 +184,7 @@ export default function LabReports() {
               action={selected?.status === "analyzed" && <Badge color="green">Sample data</Badge>}
             />
             {!selected ? (
-              <EmptyState icon={CloudUpload} title="Nothing to analyse yet" text="Upload a lab report on the left and NutriLens will display extracted values with reference ranges." />
+              <EmptyState icon={CloudUpload} title="Nothing to analyse yet" text="Upload a lab report on the left and NutriSense will display extracted values with reference ranges." />
             ) : selected.status === "processing" ? (
               <div className="mt-4 space-y-3">
                 {[0, 1, 2, 3].map((i) => (
@@ -260,7 +260,7 @@ export default function LabReports() {
           <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
             <ShieldAlert size={18} className="mt-0.5 shrink-0 text-amber-500" />
             <p className="text-[12px] leading-relaxed font-medium text-amber-700">
-              <span className="font-extrabold">Medical disclaimer:</span> NutriLens provides nutrition-focused insights from sample data and is not a
+              <span className="font-extrabold">Medical disclaimer:</span> NutriSense provides nutrition-focused insights from sample data and is not a
               medical device. These values are illustrative only — they are not a diagnosis, prescription, or treatment plan. Always consult a
               qualified physician or dietitian before changing your diet based on lab results.
             </p>

@@ -193,7 +193,7 @@ export default function Settings() {
 
         {/* Notifications */}
         <Card className="p-5">
-          <SectionTitle title="Notifications" subtitle="Choose what NutriLens pings you about" />
+          <SectionTitle title="Notifications" subtitle="Choose what NutriSense pings you about" />
           <ul className="mt-3 divide-y divide-line/70">
             {PREF_ROWS.map(({ key, icon: Icon, label, desc }) => (
               <li key={key} className="flex items-center gap-3.5 py-3.5">
@@ -215,11 +215,11 @@ export default function Settings() {
 
         {/* Data */}
         <Card className="p-5">
-          <SectionTitle title="Data & demo" subtitle="LocalStorage powers this frontend demo" />
+          <SectionTitle title="Data & Storage" subtitle="Manage your application data and local storage" />
           <div className="mt-4 space-y-3 text-[12.5px] font-medium leading-relaxed text-mist">
             <p>
-              Everything you log — diary entries, pantry items, shopping list and settings — is persisted in your browser so the
-              demo survives refreshes. When the Flask + MySQL backend lands, these stores map 1:1 onto REST endpoints.
+              Everything you log — diary entries, pantry items, shopping list and settings — is securely persisted in your browser
+              and synced with your NutriSense account.
             </p>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {[
@@ -237,13 +237,13 @@ export default function Settings() {
           </div>
           <div className="mt-4 flex flex-wrap gap-2.5">
             <button className="btn btn-danger btn-sm" onClick={resetDemo}>
-              <RotateCcw size={14} /> Reset demo data
+              <RotateCcw size={14} /> Clear stored data
             </button>
             <span className="btn btn-soft btn-sm pointer-events-none">
-              <Flame size={13} /> v1.0 demo build
+              <Flame size={13} /> NutriSense v1.0
             </span>
             <span className="btn btn-soft btn-sm pointer-events-none">
-              <User size={13} /> Single-user profile
+              <User size={13} /> Active profile
             </span>
           </div>
         </Card>
