@@ -1,5 +1,6 @@
 {
   "seedVersion": "1.0.0",
+  "disclaimer": "SAMPLE DATA, approximate, verify against IFCT 2017",
   "foods": [
     {
       "key": "idli",

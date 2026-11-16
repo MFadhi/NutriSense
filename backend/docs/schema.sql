@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS food_categories (
 -- foods
 -- Master food item table. Includes per-100g macronutrient data, allergen and
 -- tag metadata, and provenance fields. Sample foods are seeded from
--- seed/foods_seed.json; user-submitted foods set is_sample=0.
+-- seed/foods_seed.json; user-submitted custom foods have owner_user_id set and is_sample=0.
 -- A FULLTEXT index on the three name columns powers search.
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS foods (
@@ -88,37 +88,47 @@ CREATE TABLE IF NOT EXISTS foods (
     category_id     INT             DEFAULT NULL  COMMENT 'FK to food_categories(id)',
 
     -- Diet classification
-    diet            VARCHAR(10)     NOT NULL DEFAULT 'veg' COMMENT 'veg | vegan | nonveg | eggetarian',
+    diet            ENUM('vegan', 'veg', 'egg', 'nonveg') NOT NULL DEFAULT 'veg' COMMENT 'vegan | veg | egg | nonveg',
 
     -- Per-100g macronutrients (IFCT 2017 / USDA)
-    kcal_per_100g       DECIMAL(7,2)  DEFAULT NULL COMMENT 'Energy (kcal) per 100 g',
-    protein_per_100g    DECIMAL(7,2)  DEFAULT NULL COMMENT 'Protein (g) per 100 g',
-    carbs_per_100g      DECIMAL(7,2)  DEFAULT NULL COMMENT 'Carbohydrates (g) per 100 g',
-    fat_per_100g        DECIMAL(7,2)  DEFAULT NULL COMMENT 'Total fat (g) per 100 g',
-    fibre_per_100g      DECIMAL(7,2)  DEFAULT NULL COMMENT 'Dietary fibre (g) per 100 g',
+    kcal_per_100g       DECIMAL(7,2)  NOT NULL COMMENT 'Energy (kcal) per 100 g',
+    protein_per_100g    DECIMAL(7,2)  NOT NULL COMMENT 'Protein (g) per 100 g',
+    carbs_per_100g      DECIMAL(7,2)  NOT NULL COMMENT 'Carbohydrates (g) per 100 g',
+    fat_per_100g        DECIMAL(7,2)  NOT NULL COMMENT 'Total fat (g) per 100 g',
+    fibre_per_100g      DECIMAL(7,2)  DEFAULT 0.00 COMMENT 'Dietary fibre (g) per 100 g',
 
-    -- Metadata
+    -- Metadata & Phase 3 additions
     allergens       JSON            DEFAULT NULL COMMENT 'JSON array of allergen strings, e.g. ["gluten","dairy"]',
     tags            JSON            DEFAULT NULL COMMENT 'JSON array of descriptive tags, e.g. ["staple","south-indian"]',
     is_sample       TINYINT(1)      NOT NULL DEFAULT 1 COMMENT '1 = seeded sample data; 0 = user-submitted',
-    source          VARCHAR(20)     DEFAULT 'sample' COMMENT 'Data source: sample | usda | user | barcode',
+    source          ENUM('sample', 'user', 'openfoodfacts', 'usda') NOT NULL DEFAULT 'sample' COMMENT 'Data source: sample | user | openfoodfacts | usda',
     barcode         VARCHAR(50)     DEFAULT NULL  COMMENT 'EAN/UPC barcode for packaged foods',
+    owner_user_id   INT             DEFAULT NULL  COMMENT 'FK to users(id); NULL = global catalogue food, set = custom food',
+    diet_verified   TINYINT(1)      NOT NULL DEFAULT 1 COMMENT '1 = verified diet classification, 0 = unverified',
+    needs_review    TINYINT(1)      NOT NULL DEFAULT 0 COMMENT '1 = incomplete nutrient data or unverified diet',
 
     created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     PRIMARY KEY (id),
     UNIQUE KEY uq_foods_seed_key (seed_key),
-    UNIQUE KEY uq_foods_barcode (barcode),
+    KEY idx_foods_name_en (name_en),
+    KEY idx_foods_category_id (category_id),
+    KEY idx_foods_barcode (barcode),
+    KEY idx_foods_owner (owner_user_id),
 
-    -- Full-text search across all language name columns
+    -- Full-text search across all language name columns (MySQL only)
     FULLTEXT INDEX ft_foods_names (name_en, name_hi, name_kn),
 
     CONSTRAINT fk_foods_category
         FOREIGN KEY (category_id) REFERENCES food_categories (id)
-        ON DELETE SET NULL ON UPDATE CASCADE
+        ON DELETE SET NULL ON UPDATE CASCADE,
+
+    CONSTRAINT fk_foods_owner
+        FOREIGN KEY (owner_user_id) REFERENCES users (id)
+        ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  COMMENT='Master food item catalogue with per-100g nutrition data';
+  COMMENT='Master food item catalogue with per-100g nutrition data and user custom foods';
 
 
 -- ---------------------------------------------------------------------------
@@ -179,7 +189,7 @@ CREATE TABLE IF NOT EXISTS food_logs (
     user_id         INT             NOT NULL COMMENT 'FK to users(id)',
     food_id         INT             DEFAULT NULL  COMMENT 'FK to foods(id), nullable (SET NULL on food delete)',
     food_name       VARCHAR(200)    NOT NULL      COMMENT 'Snapshot of food name at log time',
-    meal            VARCHAR(20)     NOT NULL      COMMENT 'breakfast | lunch | snack | dinner',
+    meal            ENUM('breakfast', 'lunch', 'snack', 'dinner') NOT NULL COMMENT 'breakfast | lunch | snack | dinner',
     logged_at       DATETIME        NOT NULL      COMMENT 'UTC timestamp when entry was created',
     log_date        DATE            NOT NULL      COMMENT 'Calendar date the entry belongs to (may differ from logged_at)',
 
@@ -214,6 +224,45 @@ CREATE TABLE IF NOT EXISTS food_logs (
         ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='Food diary entries — nutrient values are snapshots, not live FK values';
+
+
+-- ---------------------------------------------------------------------------
+-- water_logs
+-- Daily water intake tracker entries.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS water_logs (
+    id              INT             NOT NULL AUTO_INCREMENT,
+    user_id         INT             NOT NULL COMMENT 'FK to users(id)',
+    log_date        DATE            NOT NULL COMMENT 'Local date of the log',
+    amount_ml       INT             NOT NULL COMMENT 'Millilitres of water consumed (1 - 2000)',
+    logged_at       DATETIME        NOT NULL COMMENT 'UTC timestamp when entry was logged',
+    created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+    KEY idx_water_logs_user_date (user_id, log_date),
+
+    CONSTRAINT fk_water_logs_user
+        FOREIGN KEY (user_id) REFERENCES users (id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Water intake tracking logs';
+
+
+-- ---------------------------------------------------------------------------
+-- external_product_cache
+-- Cached Open Food Facts product responses and negative lookups.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS external_product_cache (
+    barcode         VARCHAR(50)     NOT NULL COMMENT 'GS1 barcode (EAN-13, EAN-8, UPC-A)',
+    source          VARCHAR(50)     NOT NULL DEFAULT 'openfoodfacts' COMMENT 'External provider name',
+    status          ENUM('found', 'not_found') NOT NULL COMMENT 'Lookup outcome',
+    payload         JSON            DEFAULT NULL COMMENT 'Parsed food draft payload (found only)',
+    fetched_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at      DATETIME        NOT NULL COMMENT 'Cache expiration timestamp (UTC)',
+
+    PRIMARY KEY (barcode)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='Cache for external product API lookups (e.g. Open Food Facts)';
 
 
 SET foreign_key_checks = 1;

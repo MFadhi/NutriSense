@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
@@ -24,6 +25,8 @@ import { Card, ChartTooltip, ProgressBar, Ring, SectionTitle, Thumb, fmt } from 
 import { IMAGES, MEAL_TYPES } from "../data/foods";
 import { HEALTH_TIPS, QUOTES, WEEKLY } from "../data/extras";
 import { WEATHER } from "../services/weather";
+import { getDailyDashboard, getWeeklyDashboard } from "../api/dashboard";
+import { localToday } from "../utils/date";
 
 const greeting = () => {
   const h = new Date().getHours();
@@ -31,27 +34,93 @@ const greeting = () => {
 };
 
 const MACRO_META = [
-  { key: "protein", label: "Protein", icon: Beef, color: "#4caf50", tint: "bg-[#e8f5d8]" },
-  { key: "carbs", label: "Carbs", icon: Wheat, color: "#8bc34a", tint: "bg-[#eef7e0]" },
-  { key: "fat", label: "Fat", icon: Droplet, color: "#f0a13c", tint: "bg-[#fdf2e0]" },
+  { key: "protein", label: "Protein", icon: Beef,  color: "#4caf50", tint: "bg-[#e8f5d8]" },
+  { key: "carbs",   label: "Carbs",   icon: Wheat,  color: "#8bc34a", tint: "bg-[#eef7e0]" },
+  { key: "fat",     label: "Fat",     icon: Droplet, color: "#f0a13c", tint: "bg-[#fdf2e0]" },
 ];
 
 const QUICK_ACTIONS = [
-  { to: "/lab-reports", icon: FileUp, label: "Upload Lab Report", desc: "Get nutrition insights" },
-  { to: "/scanner", icon: ScanLine, label: "Scan Food", desc: "Identify a meal photo" },
-  { to: "/pantry", icon: PackagePlus, label: "Add Pantry Items", desc: "Track ingredients" },
-  { to: "/recipes", icon: ChefHat, label: "Explore Recipes", desc: "Cook from your pantry" },
+  { to: "/lab-reports", icon: FileUp,     label: "Upload Lab Report", desc: "Get nutrition insights" },
+  { to: "/scanner",     icon: ScanLine,   label: "Scan Food",          desc: "Identify a meal photo" },
+  { to: "/pantry",      icon: PackagePlus, label: "Add Pantry Items",  desc: "Track ingredients" },
+  { to: "/recipes",     icon: ChefHat,    label: "Explore Recipes",    desc: "Cook from your pantry" },
 ];
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { profile, totals, targets, water, addWater, resetWater, diary, resolveFood } = useApp();
+  const { profile, totals, targets, water, addWater, resetWater, diary, resolveFood, auth } = useApp();
 
-  const remaining = Math.max(0, targets.calories - totals.calories);
-  const dateStr = new Date().toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long" });
-  const quote = QUOTES[new Date().getDate() % QUOTES.length];
-  const glasses = Math.round(targets.water / 250);
-  const filledGlasses = Math.round(water / 250);
+  /* API data */
+  const [dailyData, setDailyData]   = useState(null);
+  const [weeklyData, setWeeklyData] = useState(null);
+
+  const isAuthenticated = auth?.isAuthenticated;
+
+  // Load API data when authenticated
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const today = localToday();
+    getDailyDashboard(today)
+      .then(setDailyData)
+      .catch(() => setDailyData(null));
+
+    const endDate = today;
+    getWeeklyDashboard(endDate, 7)
+      .then(setWeeklyData)
+      .catch(() => setWeeklyData(null));
+  }, [isAuthenticated]);
+
+  // Reload daily when diary changes (after a log entry)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const today = localToday();
+    getDailyDashboard(today)
+      .then(setDailyData)
+      .catch(() => {});
+  }, [totals, isAuthenticated]);
+
+  /* Decide which values to display */
+  const displayTargets = isAuthenticated && dailyData?.targets
+    ? {
+        calories: dailyData.targets.kcal,
+        protein: dailyData.targets.protein_g,
+        carbs: dailyData.targets.carbs_g,
+        fat: dailyData.targets.fat_g,
+        water: dailyData.targets.water_ml,
+      }
+    : targets;
+
+  const displayTotals = isAuthenticated && dailyData?.consumed
+    ? {
+        calories: dailyData.consumed.kcal,
+        protein: dailyData.consumed.protein_g,
+        carbs: dailyData.consumed.carbs_g,
+        fat: dailyData.consumed.fat_g,
+        count: Object.values(dailyData.meals || {}).reduce((s, m) => s + (m.entries || []).length, 0),
+      }
+    : totals;
+
+  const displayWater = isAuthenticated && dailyData?.water
+    ? dailyData.water.ml
+    : water;
+
+  const displayWaterGoal = isAuthenticated && dailyData?.water
+    ? dailyData.water.goal_ml
+    : (displayTargets.water || 2500);
+
+  /* Weekly chart data */
+  const chartData = weeklyData?.days
+    ? weeklyData.days.map((d) => ({
+        day: new Date(d.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' }),
+        calories: d.kcal,
+      }))
+    : WEEKLY;
+
+  const remaining  = Math.max(0, displayTargets.calories - displayTotals.calories);
+  const dateStr    = new Date().toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long" });
+  const quote      = QUOTES[new Date().getDate() % QUOTES.length];
+  const glasses    = Math.round(displayWaterGoal / 250);
+  const filledGlasses = Math.round(displayWater / 250);
 
   return (
     <div className="space-y-5">
@@ -66,13 +135,13 @@ export default function Dashboard() {
           <h1 className="font-display max-w-xl text-3xl font-semibold tracking-tight text-white sm:text-4xl">
             {greeting()}, {profile.name.split(" ")[0]}
           </h1>
-          <p className="font-display max-w-lg text-[15px] text-white/85 italic sm:text-base">“{quote}”</p>
+          <p className="font-display max-w-lg text-[15px] text-white/85 italic sm:text-base">"{quote}"</p>
           <div className="mt-1 flex flex-wrap gap-2">
             <span className="rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold text-white backdrop-blur">
-              <Flame size={11} className="mr-1 inline -translate-y-px" /> {fmt(totals.calories)} / {targets.calories} kcal
+              <Flame size={11} className="mr-1 inline -translate-y-px" /> {fmt(displayTotals.calories)} / {displayTargets.calories} kcal
             </span>
             <span className="rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold text-white backdrop-blur">
-              <Droplets size={11} className="mr-1 inline -translate-y-px" /> {(water / 1000).toFixed(1)} / {(targets.water / 1000).toFixed(1)} L water
+              <Droplets size={11} className="mr-1 inline -translate-y-px" /> {(displayWater / 1000).toFixed(1)} / {(displayWaterGoal / 1000).toFixed(1)} L water
             </span>
             <span className="rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold text-white backdrop-blur">
               {WEATHER.temp}°C · {WEATHER.condition}
@@ -86,25 +155,27 @@ export default function Dashboard() {
         <Card className="p-5 lg:col-span-5">
           <SectionTitle title="Calories today" subtitle="Daily energy budget" />
           <div className="mt-4 flex items-center gap-6">
-            <Ring value={totals.calories} max={targets.calories} size={168} stroke={14}>
-              <span className="text-3xl font-extrabold tracking-tight text-ink">{fmt(totals.calories)}</span>
-              <span className="text-[10px] font-bold tracking-[0.12em] text-mist uppercase">of {targets.calories} kcal</span>
+            <Ring value={displayTotals.calories} max={displayTargets.calories} size={168} stroke={14}>
+              <span className="text-3xl font-extrabold tracking-tight text-ink">{fmt(displayTotals.calories)}</span>
+              <span className="text-[10px] font-bold tracking-[0.12em] text-mist uppercase">of {displayTargets.calories} kcal</span>
               <span className="mt-1 rounded-full bg-leaf-100 px-2 py-0.5 text-[10px] font-extrabold text-leaf-700">
-                {fmt((totals.calories / targets.calories) * 100)}%
+                {fmt((displayTotals.calories / displayTargets.calories) * 100)}%
               </span>
             </Ring>
             <div className="flex-1 space-y-3.5">
               {[
-                { label: "Daily target", value: `${fmt(targets.calories)} kcal`, cls: "text-ink" },
-                { label: "Consumed", value: `${fmt(totals.calories)} kcal`, cls: "text-leaf-600" },
-                { label: "Remaining", value: `${fmt(remaining)} kcal`, cls: "text-ink" },
+                { label: "Daily target", value: `${fmt(displayTargets.calories)} kcal`, cls: "text-ink" },
+                { label: "Consumed",     value: `${fmt(displayTotals.calories)} kcal`, cls: "text-leaf-600" },
+                { label: "Remaining",    value: `${fmt(remaining)} kcal`,              cls: "text-ink" },
               ].map((row) => (
                 <div key={row.label} className="flex items-baseline justify-between border-b border-dashed border-line pb-3 last:border-0 last:pb-0">
                   <span className="text-xs font-bold text-mist">{row.label}</span>
                   <span className={`text-sm font-extrabold ${row.cls}`}>{row.value}</span>
                 </div>
               ))}
-              <p className="text-[11px] leading-relaxed font-medium text-mist">{totals.count} item{totals.count === 1 ? "" : "s"} logged across your meals today.</p>
+              <p className="text-[11px] leading-relaxed font-medium text-mist">
+                {displayTotals.count} item{displayTotals.count === 1 ? "" : "s"} logged across your meals today.
+              </p>
             </div>
           </div>
         </Card>
@@ -119,21 +190,21 @@ export default function Dashboard() {
                 </div>
                 <p className="mt-3 text-xs font-bold text-mist">{label}</p>
                 <p className="mt-0.5 text-xl font-extrabold tracking-tight text-ink">
-                  {fmt(totals[key])}
-                  <span className="text-xs font-bold text-mist"> / {targets[key]} g</span>
+                  {fmt(displayTotals[key])}
+                  <span className="text-xs font-bold text-mist"> / {displayTargets[key]} g</span>
                 </p>
                 <div className="mt-2.5">
-                  <ProgressBar value={totals[key]} max={targets[key]} color={color} height={7} />
+                  <ProgressBar value={displayTotals[key]} max={displayTargets[key]} color={color} height={7} />
                 </div>
                 <p className="mt-1.5 text-[10px] font-bold" style={{ color }}>
-                  {fmt((totals[key] / targets[key]) * 100)}% of target
+                  {fmt((displayTotals[key] / displayTargets[key]) * 100)}% of target
                 </p>
               </div>
             ))}
           </div>
           <div className="mt-4 flex items-center gap-2 rounded-xl bg-leaf-75 px-3.5 py-2.5 text-[12px] font-semibold text-leaf-800">
             <Lightbulb size={14} className="shrink-0 text-leaf-500" />
-            {totals.protein < targets.protein * 0.5
+            {displayTotals.protein < displayTargets.protein * 0.5
               ? "Protein is lagging — add eggs, paneer or chicken to your next meal."
               : "Great macro balance so far. Keep protein steady through the evening."}
           </div>
@@ -145,21 +216,21 @@ export default function Dashboard() {
         <Card className="p-5 lg:col-span-5">
           <SectionTitle
             title="Hydration tracker"
-            subtitle={`Target ${(targets.water / 1000).toFixed(1)} L today`}
+            subtitle={`Target ${(displayWaterGoal / 1000).toFixed(1)} L today`}
             action={
-              <button className="icon-btn" onClick={resetWater} title="Reset water intake">
+              <button className="icon-btn" onClick={resetWater} title="Reset water intake" aria-label="Reset water intake">
                 <RotateCcw size={14} />
               </button>
             }
           />
           <div className="mt-3 flex items-end justify-between">
             <p className="text-[34px] leading-none font-extrabold tracking-tight text-ink">
-              {(water / 1000).toFixed(1)} <span className="text-base font-bold text-mist">L</span>
+              {(displayWater / 1000).toFixed(1)} <span className="text-base font-bold text-mist">L</span>
             </p>
-            <p className="text-xs font-bold text-mist">{fmt(Math.max(0, targets.water - water))} ml remaining</p>
+            <p className="text-xs font-bold text-mist">{fmt(Math.max(0, displayWaterGoal - displayWater))} ml remaining</p>
           </div>
           <div className="mt-3">
-            <ProgressBar value={water} max={targets.water} height={10} color="var(--color-leaf-500)" />
+            <ProgressBar value={displayWater} max={displayWaterGoal} height={10} color="var(--color-leaf-500)" />
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
             {Array.from({ length: glasses }).map((_, i) => (
@@ -172,7 +243,7 @@ export default function Dashboard() {
             ))}
           </div>
           <div className="mt-4 flex items-center gap-2.5">
-            <button className="btn btn-primary btn-sm" onClick={() => addWater(250)}>
+            <button className="btn btn-primary btn-sm" onClick={() => addWater(250)} aria-label="Add 250ml water">
               <Droplets size={14} /> Add 250 ml
             </button>
             <p className="text-[11px] font-semibold text-mist">1 glass ≈ 250 ml</p>
@@ -195,10 +266,10 @@ export default function Dashboard() {
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
             {[
-              { label: "Humidity", value: `${WEATHER.humidity}%`, icon: Droplets },
-              { label: "Wind", value: `${WEATHER.wind} km/h`, icon: Wind },
-              { label: "UV index", value: `${WEATHER.uvIndex} · ${WEATHER.uv}`, icon: Lightbulb },
-              { label: "Water target", value: "3.0 L", icon: Droplet },
+              { label: "Humidity",     value: `${WEATHER.humidity}%`,           icon: Droplets },
+              { label: "Wind",         value: `${WEATHER.wind} km/h`,           icon: Wind },
+              { label: "UV index",     value: `${WEATHER.uvIndex} · ${WEATHER.uv}`, icon: Lightbulb },
+              { label: "Water target", value: `${(displayWaterGoal/1000).toFixed(1)} L`, icon: Droplet },
             ].map(({ label, value, icon: Icon }) => (
               <div key={label} className="rounded-xl border border-line bg-leaf-50 px-3 py-2.5">
                 <div className="flex items-center gap-1.5 text-[10px] font-extrabold tracking-wide text-mist uppercase">
@@ -230,15 +301,11 @@ export default function Dashboard() {
         </div>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {MEAL_TYPES.map((meal) => {
-            const data = totals.perMeal[meal.id] || { calories: 0, count: 0 };
-            const items = diary[meal.id] || [];
+            const mealKey = meal.id === "snack" ? "snacks" : meal.id;
+            const data  = totals.perMeal[mealKey] || { calories: 0, count: 0 };
+            const items = diary[mealKey] || [];
             return (
-              <Card
-                key={meal.id}
-                hover
-                className="cursor-pointer overflow-hidden"
-                onClick={() => navigate("/nutrition")}
-              >
+              <Card key={meal.id} hover className="cursor-pointer overflow-hidden" onClick={() => navigate("/nutrition")}>
                 <div className="relative h-28">
                   <img src={meal.image} alt={meal.label} loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-t from-ink/55 to-transparent" />
@@ -275,19 +342,19 @@ export default function Dashboard() {
       {/* ---------- Trends + actions ---------- */}
       <div className="grid gap-4 xl:grid-cols-12">
         <Card className="p-5 xl:col-span-8">
-          <SectionTitle title="Weekly calorie trend" subtitle="Last 7 days · target 2,000 kcal" />
+          <SectionTitle title="Weekly calorie trend" subtitle="Last 7 days · target line" />
           <div className="mt-3 h-[248px]">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={WEEKLY} margin={{ top: 8, right: 6, left: -14, bottom: 0 }}>
+              <AreaChart data={chartData} margin={{ top: 8, right: 6, left: -14, bottom: 0 }}>
                 <defs>
                   <linearGradient id="calFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#8bc34a" stopOpacity={0.35} />
+                    <stop offset="0%"   stopColor="#8bc34a" stopOpacity={0.35} />
                     <stop offset="100%" stopColor="#8bc34a" stopOpacity={0.02} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid vertical={false} stroke="#e0ead9" strokeDasharray="4 6" />
                 <XAxis dataKey="day" tickLine={false} axisLine={false} tick={{ fill: "#78909c", fontSize: 11, fontWeight: 700 }} dy={6} />
-                <YAxis tickLine={false} axisLine={false} tick={{ fill: "#b3c4ad", fontSize: 10, fontWeight: 700 }} domain={[1400, 2300]} />
+                <YAxis tickLine={false} axisLine={false} tick={{ fill: "#b3c4ad", fontSize: 10, fontWeight: 700 }} domain={[0, "auto"]} />
                 <Tooltip content={<ChartTooltip unit=" kcal" />} cursor={{ stroke: "#a5d66d", strokeWidth: 1.5, strokeDasharray: "4 4" }} />
                 <Area type="monotone" dataKey="calories" name="Calories" stroke="#8bc34a" strokeWidth={2.5} fill="url(#calFill)" dot={{ r: 3, fill: "#fff", stroke: "#8bc34a", strokeWidth: 2 }} activeDot={{ r: 5, fill: "#4caf50" }} />
               </AreaChart>

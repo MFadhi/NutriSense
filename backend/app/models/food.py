@@ -27,7 +27,11 @@ class Food(db.Model):
     category_id = db.Column(
         db.Integer, db.ForeignKey("food_categories.id"), nullable=True
     )
-    diet = db.Column(db.String(10), nullable=False, default="veg")
+    diet = db.Column(
+        db.Enum("vegan", "veg", "egg", "nonveg", name="diet_types"),
+        nullable=False,
+        default="veg",
+    )
     kcal_per_100g = db.Column(db.Numeric(7, 2), nullable=False)
     protein_per_100g = db.Column(db.Numeric(7, 2), nullable=False)
     carbs_per_100g = db.Column(db.Numeric(7, 2), nullable=False)
@@ -36,8 +40,20 @@ class Food(db.Model):
     allergens = db.Column(db.JSON, nullable=True, default=list)
     tags = db.Column(db.JSON, nullable=True, default=list)
     is_sample = db.Column(db.Boolean, default=True, nullable=False)
-    source = db.Column(db.String(20), default="sample", nullable=False)
+    source = db.Column(
+        db.Enum("sample", "user", "openfoodfacts", "usda", name="food_sources"),
+        default="sample",
+        nullable=False,
+    )
     barcode = db.Column(db.String(50), nullable=True, index=True)
+    owner_user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    diet_verified = db.Column(db.Boolean, default=True, nullable=False)
+    needs_review = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(
         db.DateTime, default=lambda: datetime.now(timezone.utc)
     )
@@ -69,6 +85,7 @@ class Food(db.Model):
         "FoodAlias", back_populates="food", cascade="all, delete-orphan"
     )
     logs = db.relationship("FoodLog", back_populates="food")
+    owner = db.relationship("User", backref=db.backref("custom_foods", cascade="all, delete-orphan"))
 
     def default_portion(self):
         for p in self.portions:
@@ -86,6 +103,11 @@ class Food(db.Model):
             "category": self.category.to_dict() if self.category else None,
             "diet": self.diet,
             "is_sample": self.is_sample,
+            "source": self.source,
+            "barcode": self.barcode,
+            "owner_user_id": self.owner_user_id,
+            "diet_verified": self.diet_verified,
+            "needs_review": self.needs_review,
         }
         if include_nutrition:
             d.update(

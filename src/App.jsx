@@ -9,6 +9,8 @@ import Pantry from "./pages/Pantry";
 import Recipes from "./pages/Recipes";
 import ShoppingList from "./pages/ShoppingList";
 import Settings from "./pages/Settings";
+import Login from "./auth/Login";
+import Register from "./auth/Register";
 
 export default function App() {
   return (
@@ -23,6 +25,8 @@ export default function App() {
         <Route path="recipes" element={<Recipes />} />
         <Route path="shopping" element={<ShoppingList />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="login" element={<Login />} />
+        <Route path="register" element={<Register />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

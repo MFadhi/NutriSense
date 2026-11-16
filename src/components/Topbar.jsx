@@ -88,9 +88,10 @@ export default function Topbar({ onMenu }) {
 
         {/* Search */}
         <div ref={searchRef} className="relative order-4 w-full sm:order-none sm:mx-auto sm:w-auto sm:flex-1 sm:max-w-md">
-          <Search size={16} className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-mist" />
+          <Search size={16} className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-mist z-10" />
           <input
-            className="input pl-10"
+            className="input !pl-11"
+            style={{ paddingLeft: "2.75rem" }}
             placeholder="Search foods, recipes…"
             value={q}
             onChange={(e) => {

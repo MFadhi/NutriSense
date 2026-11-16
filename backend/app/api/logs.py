@@ -1,38 +1,16 @@
 from datetime import datetime, date, timezone
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..extensions import db
 from ..models.log import FoodLog
 from ..models.food import Food, Portion
+from ..services.nutrition import compute_nutrients, quantize, _compute_nutrients
 from ..errors import error_response
 
 logs_bp = Blueprint("logs", __name__)
 
 VALID_MEALS = {"breakfast", "lunch", "snack", "dinner"}
-
-
-def quantize(val):
-    """Round to 2 decimal places with ROUND_HALF_UP."""
-    return Decimal(str(val)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
-
-def _compute_nutrients(food, portion_grams, quantity):
-    """Return dict of computed nutrients using Decimal arithmetic."""
-    q = Decimal(str(quantity))
-    pg = Decimal(str(portion_grams))
-    grams = pg * q  # total grams consumed
-    factor = grams / Decimal("100")
-
-    return {
-        "kcal": quantize(factor * Decimal(str(food.kcal_per_100g))),
-        "protein_g": quantize(factor * Decimal(str(food.protein_per_100g))),
-        "carbs_g": quantize(factor * Decimal(str(food.carbs_per_100g))),
-        "fat_g": quantize(factor * Decimal(str(food.fat_per_100g))),
-        "fibre_g": quantize(
-            factor * Decimal(str(food.fibre_per_100g or 0))
-        ),
-    }
 
 
 def _parse_date(date_str):
@@ -300,3 +278,16 @@ def delete_log(log_id):
     db.session.delete(log)
     db.session.commit()
     return jsonify({"message": "Log entry deleted."}), 200
+
+
+# ---------------------------------------------------------------------------
+# DELETE /me/data  — delete the user's logs
+# ---------------------------------------------------------------------------
+@logs_bp.route("/me/data", methods=["DELETE"])
+@jwt_required()
+def delete_my_logs():
+    """Delete all food logs for the authenticated user."""
+    user_id = int(get_jwt_identity())
+    FoodLog.query.filter_by(user_id=user_id).delete()
+    db.session.commit()
+    return jsonify({"message": "All food logs deleted."}), 200

@@ -10,19 +10,24 @@ import pytest
 from app import create_app
 from app.extensions import db as _db
 from app.models.food import Food, FoodCategory, FoodAlias, Portion
+from app.services.food_search import normalize_food_text, invalidate_cache
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def app():
+    """Function-scoped test app and database fixture."""
     app = create_app("testing")
     with app.app_context():
         _db.create_all()
+        invalidate_cache()
 
-        # Seed minimal categories
-        cat_mains = FoodCategory(slug="mains", label_en="Mains")
+        # Seed minimal categories (using canonical slugs)
         cat_dairy = FoodCategory(slug="dairy", label_en="Dairy")
-        cat_breakfast = FoodCategory(slug="breakfast", label_en="Breakfast")
-        _db.session.add_all([cat_mains, cat_dairy, cat_breakfast])
+        cat_dals = FoodCategory(slug="dals", label_en="Dals")
+        cat_tiffin = FoodCategory(slug="tiffin", label_en="Tiffin")
+        cat_breads = FoodCategory(slug="breads", label_en="Breads")
+        cat_egg_meat_fish = FoodCategory(slug="egg_meat_fish", label_en="Egg, Meat & Fish")
+        _db.session.add_all([cat_dairy, cat_dals, cat_tiffin, cat_breads, cat_egg_meat_fish])
         _db.session.flush()
 
         # Paneer
@@ -39,13 +44,19 @@ def app():
             fat_per_100g=20.8,
             fibre_per_100g=0,
             allergens=["milk"],
-            tags=["high-protein", "dairy"],
+            tags=["high_protein", "dairy"],
             is_sample=True,
             source="sample",
         )
         _db.session.add(paneer)
         _db.session.flush()
-        _db.session.add(FoodAlias(food_id=paneer.id, alias="cottage cheese", alias_normalized="cottagecheese"))
+        _db.session.add(
+            FoodAlias(
+                food_id=paneer.id,
+                alias="cottage cheese",
+                alias_normalized=normalize_food_text("cottage cheese"),
+            )
+        )
         _db.session.add(Portion(food_id=paneer.id, label="100g", grams=100, is_default=True))
         _db.session.add(Portion(food_id=paneer.id, label="1 slice (30g)", grams=30, is_default=False))
 
@@ -55,7 +66,7 @@ def app():
             name_en="Dal Tadka",
             name_hi="दाल तड़का",
             name_kn="ದಾಲ್ ತಡ್ಕಾ",
-            category_id=cat_mains.id,
+            category_id=cat_dals.id,
             diet="veg",
             kcal_per_100g=103,
             protein_per_100g=5.5,
@@ -63,7 +74,7 @@ def app():
             fat_per_100g=2.5,
             fibre_per_100g=3.5,
             allergens=[],
-            tags=["lentils", "high-fibre"],
+            tags=["lentils", "high_fibre"],
             is_sample=True,
             source="sample",
         )
@@ -77,7 +88,7 @@ def app():
             name_en="Idli",
             name_hi="इडली",
             name_kn="ಇಡ್ಲಿ",
-            category_id=cat_breakfast.id,
+            category_id=cat_tiffin.id,
             diet="veg",
             kcal_per_100g=58,
             protein_per_100g=2.0,
@@ -85,13 +96,19 @@ def app():
             fat_per_100g=0.5,
             fibre_per_100g=0.8,
             allergens=[],
-            tags=["south-indian"],
+            tags=["south_indian"],
             is_sample=True,
             source="sample",
         )
         _db.session.add(idli)
         _db.session.flush()
-        _db.session.add(FoodAlias(food_id=idli.id, alias="idly", alias_normalized="idly"))
+        _db.session.add(
+            FoodAlias(
+                food_id=idli.id,
+                alias="idly",
+                alias_normalized=normalize_food_text("idly"),
+            )
+        )
         _db.session.add(Portion(food_id=idli.id, label="1 piece (40g)", grams=40, is_default=True))
 
         # Dosa
@@ -100,7 +117,7 @@ def app():
             name_en="Dosa",
             name_hi="डोसा",
             name_kn="ದೋಸೆ",
-            category_id=cat_breakfast.id,
+            category_id=cat_tiffin.id,
             diet="veg",
             kcal_per_100g=168,
             protein_per_100g=3.8,
@@ -108,7 +125,7 @@ def app():
             fat_per_100g=3.7,
             fibre_per_100g=1.2,
             allergens=[],
-            tags=["south-indian"],
+            tags=["south_indian"],
             is_sample=True,
             source="sample",
         )
@@ -122,7 +139,7 @@ def app():
             name_en="Chapati",
             name_hi="चपाती",
             name_kn="ಚಪಾತಿ",
-            category_id=cat_mains.id,
+            category_id=cat_breads.id,
             diet="veg",
             kcal_per_100g=297,
             protein_per_100g=10.0,
@@ -136,7 +153,13 @@ def app():
         )
         _db.session.add(chapati)
         _db.session.flush()
-        _db.session.add(FoodAlias(food_id=chapati.id, alias="roti", alias_normalized="roti"))
+        _db.session.add(
+            FoodAlias(
+                food_id=chapati.id,
+                alias="roti",
+                alias_normalized=normalize_food_text("roti"),
+            )
+        )
         _db.session.add(Portion(food_id=chapati.id, label="1 roti (40g)", grams=40, is_default=True))
 
         # Chicken Curry
@@ -145,7 +168,7 @@ def app():
             name_en="Chicken Curry",
             name_hi="चिकन करी",
             name_kn="ಚಿಕನ್ ಕರಿ",
-            category_id=cat_mains.id,
+            category_id=cat_egg_meat_fish.id,
             diet="nonveg",
             kcal_per_100g=165,
             protein_per_100g=18.0,
@@ -153,7 +176,7 @@ def app():
             fat_per_100g=8.0,
             fibre_per_100g=1.5,
             allergens=[],
-            tags=["high-protein"],
+            tags=["high_protein"],
             is_sample=True,
             source="sample",
         )
@@ -162,9 +185,11 @@ def app():
         _db.session.add(Portion(food_id=chicken.id, label="1 katori (200g)", grams=200, is_default=True))
 
         _db.session.commit()
+        invalidate_cache()
         yield app
         _db.session.remove()
         _db.drop_all()
+        invalidate_cache()
 
 
 @pytest.fixture

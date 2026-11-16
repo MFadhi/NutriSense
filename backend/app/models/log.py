@@ -18,7 +18,10 @@ class FoodLog(db.Model):
         nullable=True,
     )
     food_name = db.Column(db.String(200), nullable=False)
-    meal = db.Column(db.String(20), nullable=False)  # breakfast/lunch/snack/dinner
+    meal = db.Column(
+        db.Enum("breakfast", "lunch", "snack", "dinner", name="meal_types"),
+        nullable=False,
+    )
     logged_at = db.Column(db.DateTime, nullable=False)
     log_date = db.Column(db.Date, nullable=False)
     quantity = db.Column(db.Numeric(8, 2), nullable=False)

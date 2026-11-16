@@ -6,6 +6,14 @@
 @refresh_token = <paste refresh token here>
 
 ###
+# Deployment Health Check (no auth)
+GET http://localhost:5000/health
+
+###
+# API v1 Health Check (no auth)
+GET {{base}}/health
+
+###
 # Register a new user
 POST {{base}}/auth/register
 Content-Type: application/json
@@ -50,6 +58,11 @@ Content-Type: application/json
 ###
 # Delete all logs and profile data (keeps account)
 DELETE {{base}}/auth/me/data
+Authorization: Bearer {{access_token}}
+
+###
+# Delete user logs directly via /me/data
+DELETE {{base}}/me/data
 Authorization: Bearer {{access_token}}
 
 ###
@@ -139,4 +152,88 @@ Content-Type: application/json
 ###
 # Delete a log entry
 DELETE {{base}}/logs/1
+Authorization: Bearer {{access_token}}
+
+###
+# --- Phase 3A: Water Tracker ---
+
+###
+# Log water intake
+POST {{base}}/water
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "amount_ml": 250,
+  "log_date": "2026-11-14"
+}
+
+###
+# Get water logs for date
+GET {{base}}/water?date=2026-11-14
+Authorization: Bearer {{access_token}}
+
+###
+# Delete a water log entry
+DELETE {{base}}/water/1
+Authorization: Bearer {{access_token}}
+
+###
+# --- Phase 3A: Dashboard Summaries ---
+
+###
+# Get daily summary (targets, consumed, remaining, meals, water)
+GET {{base}}/dashboard/daily?date=2026-11-14
+Authorization: Bearer {{access_token}}
+
+###
+# Get weekly summary (contiguous zero-filled array, averages)
+GET {{base}}/dashboard/weekly?end=2026-11-14&days=7
+Authorization: Bearer {{access_token}}
+
+###
+# --- Phase 3A: Barcode Lookup & Open Food Facts ---
+
+###
+# Look up barcode (EAN-13 / EAN-8 / UPC-A)
+GET {{base}}/barcodes/7350053850019
+Authorization: Bearer {{access_token}}
+
+###
+# --- Phase 3A: Custom Foods ---
+
+###
+# Create custom food
+POST {{base}}/foods/custom
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "name_en": "Homemade Protein Bar",
+  "diet": "veg",
+  "kcal_per_100g": 380,
+  "protein_per_100g": 25,
+  "carbs_per_100g": 40,
+  "fat_per_100g": 10,
+  "fibre_per_100g": 8,
+  "allergens": ["peanut", "milk"],
+  "portions": [
+    { "label": "1 bar", "grams": 60, "default": true }
+  ],
+  "barcode": "7350053850019"
+}
+
+###
+# Update custom food
+PATCH {{base}}/foods/custom/1
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+  "name_en": "Super Protein Bar"
+}
+
+###
+# Delete custom food
+DELETE {{base}}/foods/custom/1
 Authorization: Bearer {{access_token}}

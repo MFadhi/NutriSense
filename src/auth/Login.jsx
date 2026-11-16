@@ -1,0 +1,124 @@
+import { useState } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Lock, Mail, Eye, EyeOff, LogIn } from "lucide-react";
+import { useApp } from "../context/AppContext";
+import { login as apiLogin } from "../api/auth";
+import { setAccessToken, setRefreshToken } from "./tokenStore";
+
+export default function Login() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { login, toast } = useApp();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+
+    if (!email || !password) {
+      setError("Please fill in all required fields.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await apiLogin(email.trim(), password);
+      setAccessToken(res.access_token);
+      setRefreshToken(res.refresh_token);
+      await login(res.access_token, res.refresh_token, res.user);
+      toast(`Welcome back, ${res.user.email.split("@")[0]}!`);
+      const origin = location.state?.from?.pathname || "/";
+      navigate(origin, { replace: true });
+    } catch (err) {
+      const msg = err?.message || String(err);
+      if (msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("network_error")) {
+        setError("Backend server is not running at localhost:5000. Start it with 'flask run'.");
+      } else {
+        setError(msg || "Invalid email or password.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex min-h-[75vh] items-center justify-center px-4">
+      <div className="w-full max-w-md rounded-3xl border border-line bg-white p-7 shadow-xl">
+        <div className="mb-6 text-center">
+          <h1 className="text-2xl font-extrabold tracking-tight text-ink">Welcome back</h1>
+          <p className="mt-1 text-xs font-semibold text-mist">Sign in to your NutriLens account</p>
+        </div>
+
+        {error && (
+          <div className="mb-4 rounded-2xl border border-red-200 bg-red-50/90 p-3.5 text-xs font-semibold text-red-600">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="mb-1.5 block text-xs font-extrabold text-ink">Email Address</label>
+            <div className="relative">
+              <Mail size={16} className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-mist" />
+              <input
+                type="email"
+                required
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="input h-11 !pl-10"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-extrabold text-ink">Password</label>
+            <div className="relative">
+              <Lock size={16} className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-mist" />
+              <input
+                type={showPassword ? "text" : "password"}
+                required
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="input h-11 !pr-11 !pl-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((p) => !p)}
+                className="absolute top-1/2 right-3.5 -translate-y-1/2 text-mist transition-colors hover:text-ink"
+                aria-label="Toggle password visibility"
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn btn-primary mt-2 h-11 w-full justify-center text-sm font-bold shadow-md shadow-leaf-400/30"
+          >
+            {loading ? "Signing in..." : (
+              <span className="inline-flex items-center gap-1.5">
+                <LogIn size={15} /> Sign In
+              </span>
+            )}
+          </button>
+        </form>
+
+        <p className="mt-6 text-center text-xs font-medium text-mist">
+          Don't have an account?{" "}
+          <Link to="/register" className="font-bold text-leaf-600 hover:text-leaf-700">
+            Sign up free
+          </Link>
+        </p>
+      </div>
+    </div>
+  );
+}

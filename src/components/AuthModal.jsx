@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Lock, Mail, User, Eye, EyeOff, LogIn, UserPlus, CheckCircle2, ShieldCheck } from "lucide-react";
 import { Modal } from "./ui";
 import { useApp } from "../context/AppContext";
-import { apiLogin, apiRegister } from "../services/api";
+import { login as apiLogin, register as apiRegister } from "../api/auth";
+import { setAccessToken, setRefreshToken } from "../auth/tokenStore";
 
 const DIET_OPTIONS = [
   { id: "veg", label: "Vegetarian" },
@@ -54,27 +55,30 @@ export default function AuthModal({ open, onClose }) {
     try {
       if (tab === "login") {
         const res = await apiLogin(email.trim(), password);
-        login(res.access_token, res.refresh_token, res.user);
+        // Put tokens in memory/sessionStorage BEFORE calling login() so the
+        // getMe() fetch inside login() can use them.
+        setAccessToken(res.access_token);
+        setRefreshToken(res.refresh_token);
+        await login(res.access_token, res.refresh_token, res.user);
         toast(`Welcome back, ${res.user.email.split("@")[0]}!`);
         resetForm();
         onClose();
       } else {
-        await apiRegister(email.trim(), password, name.trim(), diet);
+        await apiRegister(email.trim(), password, diet);
         const loginRes = await apiLogin(email.trim(), password);
-        login(loginRes.access_token, loginRes.refresh_token, {
-          ...loginRes.user,
-          name: name.trim() || loginRes.user.email.split("@")[0],
-          diet,
-        });
+        setAccessToken(loginRes.access_token);
+        setRefreshToken(loginRes.refresh_token);
+        await login(loginRes.access_token, loginRes.refresh_token, loginRes.user);
         toast("Account created successfully!");
         resetForm();
         onClose();
       }
     } catch (err) {
-      if (err.message.includes("Failed to fetch") || err.message.includes("NetworkError")) {
-        setError("Backend server is not running at localhost:5000. Start the backend with 'flask run' or sign in with guest mode.");
+      const msg = err?.message || String(err);
+      if (msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("network_error")) {
+        setError("Backend server is not running. Start it with 'flask run' or use guest mode.");
       } else {
-        setError(err.message || "An error occurred. Please try again.");
+        setError(msg || "An error occurred. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -88,6 +92,7 @@ export default function AuthModal({ open, onClose }) {
       name: name || (email ? email.split("@")[0] : "NutriSense User"),
       diet,
     };
+    // Guest mode — tokens are fake, API calls will fail gracefully (local fallback)
     login("guest-session-token", "guest-session-refresh", guestUser);
     toast("Signed in with guest mode!");
     resetForm();
@@ -135,7 +140,7 @@ export default function AuthModal({ open, onClose }) {
       {error && (
         <div className="mb-4 rounded-2xl border border-red-200 bg-red-50/90 p-3.5 text-xs font-semibold text-red-600">
           <p className="leading-relaxed">{error}</p>
-          {error.includes("Backend server is not running") && (
+          {error.includes("not running") && (
             <button
               type="button"
               onClick={handleGuestSignIn}
@@ -151,7 +156,7 @@ export default function AuthModal({ open, onClose }) {
         {tab === "register" && (
           <div>
             <label className="mb-1.5 block text-xs font-extrabold text-ink">
-              Full Name
+              Full Name <span className="font-normal text-mist">(optional)</span>
             </label>
             <div className="relative">
               <User
@@ -163,7 +168,7 @@ export default function AuthModal({ open, onClose }) {
                 placeholder="e.g. Alex Morgan"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="input h-11 pl-10"
+                className="input h-11 !pl-10"
               />
             </div>
           </div>
@@ -184,7 +189,7 @@ export default function AuthModal({ open, onClose }) {
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="input h-11 pl-10"
+              className="input h-11 !pl-10"
             />
           </div>
         </div>
@@ -205,7 +210,7 @@ export default function AuthModal({ open, onClose }) {
               placeholder="Minimum 8 characters"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="input h-11 pr-11 pl-10"
+              className="input h-11 !pr-11 !pl-10"
             />
             <button
               type="button"

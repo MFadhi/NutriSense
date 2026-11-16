@@ -5,16 +5,36 @@ _cache = None
 _cache_lock = Lock()
 
 
-def _tokenize(text):
-    """Keep chars whose Unicode category starts with L (letter), N (number), or M (mark)."""
+def normalize_food_text(text: str) -> str:
+    """
+    ONE normalisation rule everywhere (search, aliases, seed):
+    Unicode NFKC, lower-case, split into tokens that keep characters whose
+    category starts with L (letter), N (number), or M (mark), join with a single space.
+    No \\w is used so combining vowel signs in Indic scripts (Hindi/Kannada) are preserved.
+    """
     if not text:
         return ""
-    return "".join(
-        ch for ch in text if unicodedata.category(ch)[0] in ("L", "N", "M")
-    ).lower()
+    text = unicodedata.normalize("NFKC", str(text)).lower()
+    tokens = []
+    curr = []
+    for ch in text:
+        cat = unicodedata.category(ch)
+        if cat[0] in ("L", "N", "M"):
+            curr.append(ch)
+        else:
+            if curr:
+                tokens.append("".join(curr))
+                curr = []
+    if curr:
+        tokens.append("".join(curr))
+    return " ".join(tokens)
 
 
-def _levenshtein(a, b):
+# Alias for backward compatibility
+_tokenize = normalize_food_text
+
+
+def _levenshtein(a: str, b: str) -> int:
     """Standard Levenshtein distance."""
     if len(a) < len(b):
         a, b = b, a
@@ -31,27 +51,35 @@ def _levenshtein(a, b):
     return prev[-1]
 
 
-def _score_pair(query_norm, candidate_norm, is_english=False):
-    """Score a normalized query against a normalized candidate string."""
+def _score_pair(query_norm: str, candidate_norm: str, is_english: bool = False) -> int:
+    """
+    Score a normalized query against a normalized candidate string.
+    exact 100; prefix 90; word-prefix 80; substring 70;
+    token-wise Levenshtein (allowed edits 0 for <=3 chars, 1 for <=5, 2 above;
+    also compare with a same-length prefix) = 62 - 5 x total distance; minimum 50.
+    English name +2.
+    """
     if not candidate_norm or not query_norm:
         return 0
 
+    bonus = 2 if is_english else 0
+
     # Exact match
     if query_norm == candidate_norm:
-        return 100 + (2 if is_english else 0)
+        return 100 + bonus
 
     # Prefix match
     if candidate_norm.startswith(query_norm):
-        return 90 + (2 if is_english else 0)
+        return 90 + bonus
 
     # Word-prefix: any word in candidate starts with query
     words = candidate_norm.split()
     if any(w.startswith(query_norm) for w in words):
-        return 80 + (2 if is_english else 0)
+        return 80 + bonus
 
     # Substring
     if query_norm in candidate_norm:
-        return 70 + (2 if is_english else 0)
+        return 70 + bonus
 
     # Levenshtein (token-wise)
     q_tokens = query_norm.split() or [query_norm]
@@ -71,18 +99,27 @@ def _score_pair(query_norm, candidate_norm, is_english=False):
             if d <= budget:
                 if best is None or d < best:
                     best = d
-        total_dist += best if best is not None else 999
+        if best is None:
+            return 0  # token could not be matched within budget
+        total_dist += best
 
     score = 62 - 5 * total_dist
     if score < 50:
         return 0
-    return score + (2 if is_english else 0)
+    return score + bonus
 
 
 def _load_cache():
     from ..models.food import Food
+    from sqlalchemy.orm import joinedload, selectinload
 
-    return Food.query.all()
+    return (
+        Food.query.options(
+            joinedload(Food.category),
+            selectinload(Food.portions),
+            selectinload(Food.aliases),
+        ).all()
+    )
 
 
 def invalidate_cache():
@@ -91,18 +128,22 @@ def invalidate_cache():
         _cache = None
 
 
-def search_foods(query, category_slug=None, diet=None, limit=20, offset=0):
-    """Search foods by query string with fuzzy matching."""
+def search_foods(query, category_slug=None, diet=None, limit=20, offset=0, user_id=None):
+    """Search foods by query string with fuzzy matching, caching, and custom food isolation."""
     global _cache
     with _cache_lock:
         if _cache is None:
             _cache = _load_cache()
         foods = _cache
 
-    query_norm = _tokenize(query or "")
+    query_norm = normalize_food_text(query or "")
 
     results = []
     for food in foods:
+        # Custom food visibility: only global foods or caller's own custom foods
+        if food.owner_user_id is not None and food.owner_user_id != user_id:
+            continue
+
         # Category filter
         if category_slug:
             if not food.category or food.category.slug != category_slug:
@@ -115,24 +156,25 @@ def search_foods(query, category_slug=None, diet=None, limit=20, offset=0):
             results.append((food, 50))
             continue
 
-        # Score against all names
+        # Score against English, Hindi, Kannada names and aliases
         scores = []
         if food.name_en:
             scores.append(
-                _score_pair(query_norm, _tokenize(food.name_en), is_english=True)
+                _score_pair(query_norm, normalize_food_text(food.name_en), is_english=True)
             )
         if food.name_hi:
-            scores.append(_score_pair(query_norm, _tokenize(food.name_hi)))
+            scores.append(_score_pair(query_norm, normalize_food_text(food.name_hi)))
         if food.name_kn:
-            scores.append(_score_pair(query_norm, _tokenize(food.name_kn)))
+            scores.append(_score_pair(query_norm, normalize_food_text(food.name_kn)))
         for alias in food.aliases:
-            scores.append(_score_pair(query_norm, _tokenize(alias.alias)))
+            norm_alias = alias.alias_normalized or normalize_food_text(alias.alias)
+            scores.append(_score_pair(query_norm, norm_alias))
 
         best = max(scores) if scores else 0
         if best >= 50:
             results.append((food, best))
 
-    # Sort: score desc, then English name length asc (shorter wins ties)
+    # Sort: score desc, then English name length asc (shorter names win ties)
     results.sort(key=lambda x: (-x[1], len(x[0].name_en or "")))
 
     total = len(results)

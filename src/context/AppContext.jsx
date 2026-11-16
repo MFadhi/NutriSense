@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { FOODS } from "../data/foods";
 import { RECIPES } from "../data/recipes";
 import { DEFAULT_PANTRY } from "../data/pantry";
@@ -11,6 +19,11 @@ import {
 } from "../data/defaults";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { resetAppData } from "../services/storage";
+import { getAccessToken, setAccessToken, setRefreshToken, clearTokens, hasSession, getRefreshToken } from "../auth/tokenStore";
+import * as AuthAPI from "../api/auth";
+import * as LogsAPI from "../api/logs";
+import * as WaterAPI from "../api/water";
+import { localToday, nowUtcIso } from "../utils/date";
 
 const AppContext = createContext(null);
 export const useApp = () => useContext(AppContext);
@@ -32,7 +45,98 @@ export function guessCategory(name) {
   return "Others";
 }
 
+/**
+ * Map API profile fields → local profile shape used by Settings/Topbar.
+ */
+function apiProfileToLocal(apiProfile, email) {
+  if (!apiProfile) return null;
+  const actMap = {
+    sedentary: "Sedentary",
+    light: "Lightly active",
+    moderate: "Moderately active",
+    active: "Very active",
+    very_active: "Athlete",
+  };
+  const dietMap = {
+    veg: "Vegetarian",
+    vegan: "Vegan",
+    nonveg: "Non-vegetarian",
+    eggetarian: "Eggetarian",
+  };
+  return {
+    name: apiProfile.display_name || (email ? email.split("@")[0] : "Guest"),
+    email: email || "",
+    age: apiProfile.dob ? Math.floor((Date.now() - new Date(apiProfile.dob)) / 31557600000) : 25,
+    height: apiProfile.height_cm || 170,
+    weight: apiProfile.weight_kg || 65,
+    activity: actMap[apiProfile.activity_level] || "Moderately active",
+    avatar: DEFAULT_PROFILE.avatar,
+    diet: apiProfile.diet_type ? [dietMap[apiProfile.diet_type] || apiProfile.diet_type] : ["Vegetarian"],
+    goals: ["Balanced nutrition"],
+    // Raw API fields — used when saving back
+    _api: {
+      height_cm: apiProfile.height_cm,
+      weight_kg: apiProfile.weight_kg,
+      activity_level: apiProfile.activity_level,
+      diet_type: apiProfile.diet_type,
+      goal: apiProfile.goal,
+      sex: apiProfile.sex,
+      dob: apiProfile.dob,
+    },
+  };
+}
+
+/**
+ * Map API targets (from /dashboard/daily) → local targets shape.
+ */
+function apiTargetsToLocal(apiTargets) {
+  if (!apiTargets) return null;
+  return {
+    calories: apiTargets.kcal || 2000,
+    protein: apiTargets.protein_g || 100,
+    carbs: apiTargets.carbs_g || 250,
+    fat: apiTargets.fat_g || 65,
+    water: apiTargets.water_ml || 2500,
+  };
+}
+
+/**
+ * Map API log entries → local diary shape.
+ * API: array of food_log rows with meal ∈ {breakfast,lunch,snack,dinner}
+ * Local: { breakfast:[], lunch:[], snacks:[], dinner:[] }
+ */
+function apiLogsToLocalDiary(logs) {
+  const diary = { breakfast: [], lunch: [], snacks: [], dinner: [] };
+  for (const log of logs || []) {
+    const mealKey = log.meal === "snack" ? "snacks" : log.meal;
+    if (!diary[mealKey]) diary[mealKey] = [];
+    diary[mealKey].push({
+      id: log.id,
+      _logId: log.id,
+      foodId: log.food_id || null,
+      customFood: {
+        id: log.id,
+        name: log.food_name,
+        serving: log.portion_label || `${log.portion_grams || 100}g`,
+        category: "API",
+        calories: log.kcal || 0,
+        protein: log.protein_g || 0,
+        carbs: log.carbs_g || 0,
+        fat: log.fat_g || 0,
+        image: null,
+        iconKey: "food",
+        // Keep raw for edit/display
+        _raw: log,
+      },
+      servings: log.quantity || 1,
+      time: new Date(log.logged_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
+    });
+  }
+  return diary;
+}
+
 export function AppProvider({ children }) {
+  /* ------------------------------------------------------------------ Auth */
   const [auth, setAuth] = useLocalStorage("nutrisense_auth", {
     token: null,
     refreshToken: null,
@@ -40,46 +144,150 @@ export function AppProvider({ children }) {
     isAuthenticated: false,
   });
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  // Track whether initial session restore is done
+  const [sessionRestored, setSessionRestored] = useState(false);
 
+  /* ---------------------------------------------------------------- Profile */
   const [profile, setProfile] = useLocalStorage("nutrisense_profile", DEFAULT_PROFILE);
   const [targets, setTargets] = useLocalStorage("nutrisense_targets", DEFAULT_TARGETS);
   const [prefs, setPrefs] = useLocalStorage("nutrisense_prefs", DEFAULT_PREFS);
+
+  /* ------------------------------------------------------------------ Diary — API-backed when authenticated */
   const [diary, setDiary] = useLocalStorage("nutrisense_diary", DEFAULT_DIARY);
   const [water, setWater] = useLocalStorage("nutrisense_water_ml", 0);
+  const [waterLogs, setWaterLogs] = useState([]); // API water log entries [{id, amount_ml}]
+
+  /* --------------------------------------------------------- Local-only state */
   const [pantry, setPantry] = useLocalStorage("nutrisense_pantry", DEFAULT_PANTRY);
   const [shopping, setShopping] = useLocalStorage("nutrisense_shopping", []);
   const [reports, setReports] = useLocalStorage("nutrisense_reports", []);
   const [notifications, setNotifications] = useLocalStorage("nutrisense_notifs", DEFAULT_NOTIFICATIONS);
   const [toasts, setToasts] = useState([]);
 
-  /* ------------------------------ Auth -------------------------------- */
-  const login = useCallback(
-    (token, refreshToken, user) => {
-      setAuth({ token, refreshToken, user, isAuthenticated: true });
-      if (user) {
-        setProfile((p) => ({
-          ...p,
-          email: user.email || p.email,
-          name: user.name || (user.email ? user.email.split("@")[0] : p.name),
-          diet: user.diet ? [user.diet] : p.diet,
-        }));
-      }
-    },
-    [setAuth, setProfile]
-  );
-
-  const logout = useCallback(() => {
-    setAuth({ token: null, refreshToken: null, user: null, isAuthenticated: false });
-    setProfile(DEFAULT_PROFILE);
-    setToasts((t) => [...t, { id: uid("t"), message: "Signed out successfully." }]);
-  }, [setAuth, setProfile]);
-
-  /* ------------------------------ Toasts ------------------------------ */
+  /* ------------------------------------------------------------------ Toasts */
   const toast = useCallback((message) => {
     const id = uid("t");
     setToasts((t) => [...t, { id, message }]);
     window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 2800);
   }, []);
+
+  /* ------------------------------------------------ Session restore on mount */
+  useEffect(() => {
+    // Restore token from localStorage into the in-memory store
+    if (auth.token) setAccessToken(auth.token);
+    if (auth.refreshToken) setRefreshToken(auth.refreshToken);
+
+    // If we have a session and are authenticated, try to refresh and re-fetch profile
+    const restore = async () => {
+      if (!auth.isAuthenticated) {
+        setSessionRestored(true);
+        return;
+      }
+      try {
+        // Try to get current user; if 401, tryRefresh is handled inside client.js
+        const me = await AuthAPI.getMe();
+        const localProfile = apiProfileToLocal(me.profile, me.email);
+        if (localProfile) setProfile(localProfile);
+      } catch {
+        // Session dead — clear everything
+        setAuth({ token: null, refreshToken: null, user: null, isAuthenticated: false });
+        clearTokens();
+      } finally {
+        setSessionRestored(true);
+      }
+    };
+    restore();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* ------------------------------------- Listen for forced sign-out events */
+  useEffect(() => {
+    const handler = () => {
+      setAuth({ token: null, refreshToken: null, user: null, isAuthenticated: false });
+      clearTokens();
+      setDiary(DEFAULT_DIARY);
+      setWater(0);
+      setWaterLogs([]);
+    };
+    window.addEventListener("nutrilens:signout", handler);
+    return () => window.removeEventListener("nutrilens:signout", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* --------------------------------------------- Load diary from API today */
+  const loadDiaryForDate = useCallback(async (dateStr) => {
+    if (!auth.isAuthenticated) return;
+    try {
+      const logs = await LogsAPI.getLogs(dateStr);
+      setDiary(apiLogsToLocalDiary(logs));
+    } catch {
+      // Keep local state on failure
+    }
+  }, [auth.isAuthenticated, setDiary]);
+
+  // Load today's diary whenever auth status changes
+  useEffect(() => {
+    if (auth.isAuthenticated && sessionRestored) {
+      loadDiaryForDate(localToday());
+    }
+  }, [auth.isAuthenticated, sessionRestored, loadDiaryForDate]);
+
+  /* -------------------------------------------- Load water from API today */
+  const loadWaterForDate = useCallback(async (dateStr) => {
+    if (!auth.isAuthenticated) return;
+    try {
+      const entries = await WaterAPI.getWater(dateStr);
+      setWaterLogs(entries || []);
+      const total = (entries || []).reduce((s, e) => s + (e.amount_ml || 0), 0);
+      setWater(total);
+    } catch {
+      // Keep local
+    }
+  }, [auth.isAuthenticated, setWater]);
+
+  useEffect(() => {
+    if (auth.isAuthenticated && sessionRestored) {
+      loadWaterForDate(localToday());
+    }
+  }, [auth.isAuthenticated, sessionRestored, loadWaterForDate]);
+
+  /* ------------------------------ Auth -------------------------------- */
+  const login = useCallback(
+    async (token, refreshToken, user) => {
+      setAccessToken(token);
+      setRefreshToken(refreshToken);
+      setAuth({ token, refreshToken, user, isAuthenticated: true });
+      // Fetch full profile from API
+      try {
+        const me = await AuthAPI.getMe();
+        const localProfile = apiProfileToLocal(me.profile, me.email || user?.email);
+        if (localProfile) setProfile(localProfile);
+        // Load diary + water for today
+        const today = localToday();
+        loadDiaryForDate(today);
+        loadWaterForDate(today);
+      } catch {
+        if (user) {
+          setProfile((p) => ({
+            ...p,
+            email: user.email || p.email,
+            name: user.email ? user.email.split("@")[0] : p.name,
+          }));
+        }
+      }
+    },
+    [setAuth, setProfile, loadDiaryForDate, loadWaterForDate]
+  );
+
+  const logout = useCallback(() => {
+    clearTokens();
+    setAuth({ token: null, refreshToken: null, user: null, isAuthenticated: false });
+    setProfile(DEFAULT_PROFILE);
+    setDiary(DEFAULT_DIARY);
+    setWater(0);
+    setWaterLogs([]);
+    setToasts((t) => [...t, { id: uid("t"), message: "Signed out successfully." }]);
+  }, [setAuth, setProfile, setDiary, setWater]);
 
   /* ------------------------------- Diary ------------------------------ */
   const resolveFood = useCallback(
@@ -112,30 +320,110 @@ export function AppProvider({ children }) {
     return { perMeal, ...all };
   }, [diary, resolveFood]);
 
+  /**
+   * Add a food log entry. If authenticated, calls the API; otherwise uses localStorage.
+   * payload may contain:
+   *  - foodId (string) — ID of a known food
+   *  - customFood (object) — custom inline food data
+   *  - apiFood (object) — from /foods/<id> API response
+   * For API calls the server computes all nutritional values from the food record.
+   */
   const addDiaryItem = useCallback(
-    (meal, payload, servings = 1) => {
+    async (meal, payload, servings = 1) => {
       const time = new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-      setDiary((d) => ({ ...d, [meal]: [...(d[meal] || []), { id: uid("f"), servings, time, ...payload }] }));
+      // Map "snacks" (UI) → "snack" (API enum)
+      const apiMeal = meal === "snacks" ? "snack" : meal;
+
+      if (auth.isAuthenticated && payload.apiFood) {
+        // API path — use the food from the backend
+        const food = payload.apiFood;
+        const defaultPortion = food.portions?.find((p) => p.is_default) || food.portions?.[0];
+        const portionGrams = payload.portionGrams || defaultPortion?.grams || 100;
+        const portionLabel = payload.portionLabel || defaultPortion?.label || "serving";
+
+        try {
+          await LogsAPI.createLog({
+            food_id: food.id,
+            food_name: food.name_en,
+            meal: apiMeal,
+            logged_at: nowUtcIso(),
+            log_date: localToday(),
+            quantity: servings,
+            portion_label: portionLabel,
+            portion_grams: portionGrams,
+          });
+          // Refresh diary from API
+          await loadDiaryForDate(localToday());
+          return;
+        } catch (err) {
+          // Fallback to local
+          console.warn("API log failed, using local:", err);
+        }
+      }
+
+      // Local path (unauthenticated or API food fallback)
+      const mealKey = meal; // keep "snacks" for local dict
+      setDiary((d) => ({
+        ...d,
+        [mealKey]: [...(d[mealKey] || []), { id: uid("f"), servings, time, ...payload }],
+      }));
     },
-    [setDiary]
+    [auth.isAuthenticated, setDiary, loadDiaryForDate]
   );
 
   const removeDiaryItem = useCallback(
-    (meal, id) => {
-      setDiary((d) => ({ ...d, [meal]: (d[meal] || []).filter((x) => x.id !== id) }));
+    async (meal, id) => {
+      // Check if this is an API log entry
+      const mealKey = meal;
+      const item = (diary[mealKey] || []).find((x) => x.id === id);
+
+      if (auth.isAuthenticated && item?._logId) {
+        try {
+          await LogsAPI.deleteLog(item._logId);
+          await loadDiaryForDate(localToday());
+          toast("Removed from diary");
+          return;
+        } catch (err) {
+          console.warn("API delete failed:", err);
+        }
+      }
+
+      // Local fallback
+      setDiary((d) => ({ ...d, [mealKey]: (d[mealKey] || []).filter((x) => x.id !== id) }));
       toast("Removed from diary");
     },
-    [setDiary, toast]
+    [auth.isAuthenticated, diary, setDiary, loadDiaryForDate, toast]
   );
 
   /* ------------------------------- Water ------------------------------ */
   const addWater = useCallback(
-    (ml = 250) => {
-      setWater((w) => Math.min(6000, w + ml));
-      toast(`+${ml} ml water logged`);
+    async (ml = 250) => {
+      if (auth.isAuthenticated) {
+        // Optimistic update
+        setWater((w) => Math.min(6000, w + ml));
+        try {
+          const today = localToday();
+          await WaterAPI.addWater({
+            amount_ml: ml,
+            log_date: today,
+            logged_at: nowUtcIso(),
+          });
+          // Reload to get the entry IDs for future deletion
+          await loadWaterForDate(today);
+          toast(`+${ml} ml water logged`);
+        } catch (err) {
+          // Roll back optimistic update
+          setWater((w) => Math.max(0, w - ml));
+          toast("Failed to log water — please retry.");
+        }
+      } else {
+        setWater((w) => Math.min(6000, w + ml));
+        toast(`+${ml} ml water logged`);
+      }
     },
-    [setWater, toast]
+    [auth.isAuthenticated, setWater, loadWaterForDate, toast]
   );
+
   const resetWater = useCallback(() => setWater(0), [setWater]);
 
   /* ------------------------------- Pantry ----------------------------- */
@@ -157,7 +445,6 @@ export function AppProvider({ children }) {
     [setPantry, toast]
   );
 
-  /* Pantry-aware ingredient matching for recipes */
   const haveIngredient = useCallback(
     (match) => {
       const m = norm(match);
@@ -238,24 +525,61 @@ export function AppProvider({ children }) {
   /* ------------------------------- Reset ------------------------------ */
   const resetApp = useCallback(() => {
     resetAppData();
+    clearTokens();
     window.location.reload();
   }, []);
 
+  /* ----------------------- Profile save helper ----------------------- */
+  const saveProfileToApi = useCallback(
+    async (localProfile) => {
+      if (!auth.isAuthenticated) return;
+      const actMap = {
+        "Sedentary": "sedentary",
+        "Lightly active": "light",
+        "Moderately active": "moderate",
+        "Very active": "active",
+        "Athlete": "very_active",
+      };
+      const dietMap = {
+        "Vegetarian": "veg",
+        "Vegan": "vegan",
+        "Non-vegetarian": "nonveg",
+        "Eggetarian": "eggetarian",
+      };
+      const apiBody = {
+        height_cm: Number(localProfile.height) || undefined,
+        weight_kg: Number(localProfile.weight) || undefined,
+        activity_level: actMap[localProfile.activity] || undefined,
+        diet_type: dietMap[localProfile.diet?.[0]] || undefined,
+      };
+      try {
+        await AuthAPI.updateMe(apiBody);
+      } catch (err) {
+        console.warn("Profile API save failed:", err);
+      }
+    },
+    [auth.isAuthenticated]
+  );
+
   const value = {
     auth, authModalOpen, setAuthModalOpen, login, logout,
-    profile, setProfile,
+    profile, setProfile, saveProfileToApi,
     targets, setTargets,
     prefs, setPrefs,
     diary, totals, addDiaryItem, removeDiaryItem, resolveFood,
-    water, addWater, resetWater,
+    loadDiaryForDate,
+    water, waterLogs, addWater, resetWater, loadWaterForDate,
     pantry, addIngredient, updateIngredient, removeIngredient,
     haveIngredient, recipeStats,
     shopping, addShoppingItem, addMissingToShopping, toggleShoppingItem, removeShoppingItem, clearPurchased,
     reports, setReports,
     notifications, unreadCount, markAllRead,
     toasts, toast,
+    sessionRestored,
     resetDemo: resetApp,
     resetApp,
+    apiProfileToLocal,
+    apiTargetsToLocal,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

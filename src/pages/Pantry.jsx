@@ -66,7 +66,7 @@ export default function Pantry() {
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative min-w-[220px] flex-1 sm:max-w-xs">
           <Search size={15} className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-mist" />
-          <input className="input pl-9" placeholder="Search ingredients…" value={query} onChange={(e) => setQuery(e.target.value)} />
+          <input className="input !pl-10" placeholder="Search ingredients…" value={query} onChange={(e) => setQuery(e.target.value)} />
         </div>
         <div className="flex flex-wrap gap-1.5">
           {["All", ...PANTRY_CATEGORIES].map((c) => (

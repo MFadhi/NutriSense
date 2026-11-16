@@ -1,23 +1,42 @@
 """Tests for fuzzy food search service."""
 import pytest
-from app.services.food_search import _tokenize, _levenshtein, _score_pair, search_foods
-from app.services.food_search import invalidate_cache
+from app.services.food_search import (
+    _tokenize,
+    _levenshtein,
+    _score_pair,
+    search_foods,
+    normalize_food_text,
+    invalidate_cache,
+)
 
 
 def test_tokenize_basic():
     assert _tokenize("Paneer") == "paneer"
 
 
+def test_normalization_rule_spaces_and_casing():
+    # Exactly checks the prompt example: "cottage cheese" -> "cottage cheese", not "cottagecheese"
+    assert normalize_food_text("Cottage Cheese") == "cottage cheese"
+    assert normalize_food_text("  cottage - cheese! ") == "cottage cheese"
+
+
 def test_tokenize_hindi():
     result = _tokenize("पनीर")
     assert len(result) > 0  # Hindi letters kept
+    assert normalize_food_text("दाल तड़का") == "दाल तड़का"
+
+
+def test_tokenize_kannada():
+    assert normalize_food_text("ದೋಸೆ") == "ದೋಸೆ"
+    assert normalize_food_text("ಇಡ್ಲಿ") == "ಇಡ್ಲಿ"
 
 
 def test_tokenize_strips_spaces_and_specials():
-    # Punctuation dropped, letters kept
+    # Punctuation dropped, letters kept, joined with single space
     result = _tokenize("dal-tadka!")
     assert "!" not in result
     assert "-" not in result
+    assert result == "dal tadka"
 
 
 def test_levenshtein_same():

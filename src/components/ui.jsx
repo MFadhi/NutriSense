@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { FOOD_ICONS } from "../data/foods";
 
@@ -99,10 +100,10 @@ export function Modal({ open, onClose, title, subtitle, children, maxW = "max-w-
   }, [open, onClose]);
 
   if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6">
-      <div className="absolute inset-0 bg-ink/35 backdrop-blur-[3px]" onClick={onClose} />
-      <div className={`modal-panel relative flex max-h-[90vh] w-full flex-col overflow-hidden rounded-3xl border border-line bg-white shadow-2xl ${maxW}`}>
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex min-h-screen items-center justify-center p-4 sm:p-6 overflow-y-auto">
+      <div className="fixed inset-0 bg-ink/40 backdrop-blur-[3px]" onClick={onClose} />
+      <div className={`modal-panel relative my-auto flex max-h-[88vh] w-full flex-col overflow-hidden rounded-3xl border border-line bg-white shadow-2xl z-10 ${maxW}`}>
         <div className="flex items-start justify-between gap-4 px-5 pt-5 sm:px-6">
           <div>
             <h3 className="text-lg font-extrabold tracking-tight text-ink">{title}</h3>
@@ -114,7 +115,8 @@ export function Modal({ open, onClose, title, subtitle, children, maxW = "max-w-
         </div>
         <div className="overflow-y-auto px-5 pb-6 pt-4 sm:px-6">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

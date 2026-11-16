@@ -1,6 +1,7 @@
 """Tests for nutrient computation (Decimal arithmetic)."""
 from decimal import Decimal
-from app.api.logs import _compute_nutrients, quantize
+from app.services.nutrition import compute_nutrients, quantize
+from app.api.logs import _compute_nutrients
 
 
 class _MockFood:

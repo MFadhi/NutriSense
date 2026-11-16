@@ -1,12 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Beef, CalendarDays, Droplet, Plus, Trash2, Wheat } from "lucide-react";
+import { Beef, CalendarDays, Droplet, Edit2, Loader2, Plus, RotateCcw, Trash2, Wheat, X } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import AddFoodModal from "../components/AddFoodModal";
-import { Card, ChartTooltip, EmptyState, PageHeader, ProgressBar, Ring, SectionTitle, Thumb, fmt } from "../components/ui";
+import { Card, ChartTooltip, EmptyState, Modal, PageHeader, ProgressBar, Ring, SectionTitle, Thumb, fmt } from "../components/ui";
 import { MEAL_TYPES, MEAL_LABEL } from "../data/foods";
 import { WEEKLY } from "../data/extras";
+import { localToday, nowUtcIso } from "../utils/date";
+import * as LogsAPI from "../api/logs";
 
 const suggestedMeal = () => {
   const h = new Date().getHours();
@@ -15,10 +17,11 @@ const suggestedMeal = () => {
 
 const MACRO_COLORS = { protein: "#4caf50", carbs: "#8bc34a", fat: "#f0a13c" };
 
-function MealSection({ meal, onAdd }) {
-  const { diary, totals, resolveFood, removeDiaryItem } = useApp();
-  const items = diary[meal.id] || [];
-  const sum = totals.perMeal[meal.id] || { calories: 0 };
+function MealSection({ meal, onAdd, onEdit, onDelete }) {
+  const { diary, totals, resolveFood } = useApp();
+  const mealKey = meal.id === "snack" ? "snacks" : meal.id;
+  const items = diary[mealKey] || [];
+  const sum = totals.perMeal[mealKey] || { calories: 0 };
   const Icon = meal.icon;
 
   return (
@@ -31,13 +34,22 @@ function MealSection({ meal, onAdd }) {
           <p className="text-sm font-extrabold text-ink">{meal.label}</p>
           <p className="text-[10.5px] font-bold text-mist">{meal.hint}</p>
         </div>
-        <span className="rounded-full bg-leaf-100 px-2.5 py-1 text-[11px] font-extrabold text-leaf-700">{fmt(sum.calories)} kcal</span>
-        <button className="btn btn-xs btn-soft" onClick={() => onAdd(meal.id)}>
+        <span className="rounded-full bg-leaf-100 px-2.5 py-1 text-[11px] font-extrabold text-leaf-700">
+          {fmt(sum.calories)} kcal
+        </span>
+        <button
+          className="btn btn-xs btn-soft min-h-[36px] sm:min-h-[32px] px-3"
+          onClick={() => onAdd(mealKey)}
+          aria-label={`Add food to ${meal.label}`}
+        >
           <Plus size={12} /> Add food
         </button>
       </div>
+
       {items.length === 0 ? (
-        <p className="px-5 py-5 text-xs font-semibold text-mist">Nothing logged yet — add your first {meal.label.toLowerCase()} item.</p>
+        <p className="px-5 py-5 text-xs font-semibold text-mist">
+          Nothing logged yet — add your first {meal.label.toLowerCase()} item.
+        </p>
       ) : (
         <ul className="divide-y divide-line/70">
           {items.map((it) => {
@@ -45,26 +57,41 @@ function MealSection({ meal, onAdd }) {
             if (!food) return null;
             const s = it.servings || 1;
             return (
-              <li key={it.id} className="group flex items-center gap-3 px-4 py-3 sm:px-5">
+              <li key={it.id} className="group flex items-center gap-3 px-4 py-3 sm:px-5 hover:bg-leaf-50/50 transition-colors">
                 <Thumb item={food} size={40} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[13px] font-bold text-ink">
                     {food.name}
-                    {s !== 1 && <span className="ml-1.5 rounded bg-leaf-100 px-1.5 py-0.5 text-[9px] font-extrabold text-leaf-700">×{s}</span>}
+                    {s !== 1 && (
+                      <span className="ml-1.5 rounded bg-leaf-100 px-1.5 py-0.5 text-[9px] font-extrabold text-leaf-700">
+                        ×{s}
+                      </span>
+                    )}
                   </p>
                   <p className="text-[11px] font-medium text-mist">
                     {food.serving} · P {fmt(food.protein * s)}g · C {fmt(food.carbs * s)}g · F {fmt(food.fat * s)}g
                   </p>
                 </div>
                 <span className="text-[10px] font-bold text-mist">{it.time}</span>
-                <span className="w-16 text-right text-[13px] font-extrabold text-ink">{fmt(food.calories * s)} kcal</span>
-                <button
-                  className="icon-btn h-8 w-8 text-mist/70 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-50! hover:text-red-500!"
-                  onClick={() => removeDiaryItem(meal.id, it.id)}
-                  aria-label="Remove item"
-                >
-                  <Trash2 size={14} />
-                </button>
+                <span className="w-16 text-right text-[13px] font-extrabold text-ink">
+                  {fmt(food.calories * s)} kcal
+                </span>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    className="icon-btn h-8 w-8 min-h-[36px] min-w-[36px] text-mist/70 hover:bg-leaf-100 hover:text-leaf-800"
+                    onClick={() => onEdit(mealKey, it, food)}
+                    aria-label={`Edit ${food.name}`}
+                  >
+                    <Edit2 size={13} />
+                  </button>
+                  <button
+                    className="icon-btn h-8 w-8 min-h-[36px] min-w-[36px] text-mist/70 hover:bg-red-50 hover:text-red-500"
+                    onClick={() => onDelete(mealKey, it, food)}
+                    aria-label={`Remove ${food.name}`}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               </li>
             );
           })}
@@ -75,9 +102,15 @@ function MealSection({ meal, onAdd }) {
 }
 
 export default function Nutrition() {
-  const { totals, targets, diary, resolveFood, removeDiaryItem } = useApp();
+  const { totals, targets, diary, resolveFood, removeDiaryItem, addDiaryItem, loadDiaryForDate, auth, toast } = useApp();
   const location = useLocation();
   const [modal, setModal] = useState({ open: false, meal: suggestedMeal(), focus: null });
+
+  // Edit state
+  const [editingItem, setEditingItem] = useState(null); // { meal, it, food, quantity, targetMeal }
+
+  // Undo state
+  const [undoState, setUndoState] = useState(null); // { item, meal, rawLog, timerId }
 
   /* Opened from global search — preselect a food */
   useEffect(() => {
@@ -87,6 +120,99 @@ export default function Nutrition() {
   }, [location.state]);
 
   const openAdd = (meal) => setModal({ open: true, meal: meal || suggestedMeal(), focus: null });
+
+  const handleEdit = (meal, it, food) => {
+    setEditingItem({
+      meal,
+      targetMeal: meal,
+      it,
+      food,
+      quantity: it.servings || 1,
+    });
+  };
+
+  const saveEdit = async () => {
+    if (!editingItem) return;
+    const { meal, targetMeal, it, quantity } = editingItem;
+    const isApi = Boolean(it._logId && auth?.isAuthenticated);
+
+    if (isApi) {
+      try {
+        const apiMeal = targetMeal === "snacks" ? "snack" : targetMeal;
+        await LogsAPI.updateLog(it._logId, {
+          quantity: Number(quantity) || 1,
+          meal: apiMeal,
+        });
+        await loadDiaryForDate(localToday());
+        toast("Log updated successfully");
+      } catch (err) {
+        toast(err?.message || "Failed to update log");
+      }
+    } else {
+      // Local diary edit: remove from old meal, re-add to targetMeal with new servings
+      removeDiaryItem(meal, it.id);
+      addDiaryItem(targetMeal, it, Number(quantity) || 1);
+      toast("Log updated");
+    }
+    setEditingItem(null);
+  };
+
+  const handleDeleteWithUndo = async (meal, it, food) => {
+    // If there's an existing undo timer, commit it
+    if (undoState?.timerId) {
+      clearTimeout(undoState.timerId);
+    }
+
+    const rawLog = it.customFood?._raw || null;
+    const deletedInfo = {
+      meal,
+      it,
+      food,
+      rawLog,
+    };
+
+    // Remove item right away
+    await removeDiaryItem(meal, it.id);
+
+    // Setup 5-second undo timer
+    const timerId = setTimeout(() => {
+      setUndoState(null);
+    }, 5000);
+
+    setUndoState({ ...deletedInfo, timerId });
+  };
+
+  const handleUndo = async () => {
+    if (!undoState) return;
+    clearTimeout(undoState.timerId);
+    const { meal, it, food, rawLog } = undoState;
+
+    if (auth?.isAuthenticated && rawLog) {
+      try {
+        await LogsAPI.createLog({
+          food_id: rawLog.food_id || null,
+          food_name: rawLog.food_name || food.name,
+          meal: rawLog.meal,
+          logged_at: nowUtcIso(),
+          log_date: localToday(),
+          quantity: rawLog.quantity || it.servings || 1,
+          portion_label: rawLog.portion_label || "serving",
+          portion_grams: rawLog.portion_grams || 100,
+        });
+        await loadDiaryForDate(localToday());
+        toast(`Restored ${food.name}`);
+      } catch {
+        // Fallback local re-add
+        addDiaryItem(meal, it, it.servings || 1);
+        toast(`Restored ${food.name}`);
+      }
+    } else {
+      addDiaryItem(meal, it, it.servings || 1);
+      toast(`Restored ${food.name}`);
+    }
+
+    setUndoState(null);
+  };
 
   const macroPie = [
     { name: "Protein", value: Math.round(totals.protein * 4), key: "protein" },
@@ -103,14 +229,46 @@ export default function Nutrition() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="My Nutrition" subtitle="Track today's meals, macros and weekly trends — data persists in your browser.">
-        <span className="btn btn-outline btn-sm pointer-events-none">
+      <PageHeader title="My Nutrition" subtitle="Track today's meals, macros and weekly trends — synced with NutriLens.">
+        <span className="btn btn-outline btn-sm pointer-events-none min-h-[44px]">
           <CalendarDays size={14} /> {new Date().toLocaleDateString("en-US", { weekday: "short", day: "numeric", month: "short" })}
         </span>
-        <button className="btn btn-primary btn-sm" onClick={() => openAdd()}>
+        <button
+          className="btn btn-primary btn-sm min-h-[44px] px-4"
+          onClick={() => openAdd()}
+          aria-label="Add food to diary"
+        >
           <Plus size={15} /> Add food
         </button>
       </PageHeader>
+
+      {/* Undo Banner if an item was just deleted */}
+      {undoState && (
+        <div className="flex items-center justify-between rounded-2xl border border-leaf-300 bg-leaf-100/90 px-4 py-3 shadow-md">
+          <p className="text-xs font-bold text-leaf-800">
+            Removed <span className="font-extrabold">{undoState.food?.name}</span> from diary.
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleUndo}
+              className="inline-flex items-center gap-1 rounded-xl bg-leaf-600 px-3 py-1.5 text-xs font-extrabold text-white shadow-xs hover:bg-leaf-700 min-h-[36px]"
+              aria-label="Undo food removal"
+            >
+              <RotateCcw size={13} /> Undo
+            </button>
+            <button
+              onClick={() => {
+                clearTimeout(undoState.timerId);
+                setUndoState(null);
+              }}
+              className="text-leaf-600 hover:text-leaf-900 p-1"
+              aria-label="Dismiss undo notification"
+            >
+              <X size={15} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Summary row */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -152,7 +310,13 @@ export default function Nutrition() {
         {/* Meals */}
         <div className="space-y-4 xl:col-span-2">
           {MEAL_TYPES.map((meal) => (
-            <MealSection key={meal.id} meal={meal} onAdd={openAdd} />
+            <MealSection
+              key={meal.id}
+              meal={meal}
+              onAdd={openAdd}
+              onEdit={handleEdit}
+              onDelete={handleDeleteWithUndo}
+            />
           ))}
         </div>
 
@@ -213,14 +377,14 @@ export default function Nutrition() {
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[12.5px] font-bold text-ink">{food.name}</p>
                         <p className="text-[10.5px] font-semibold text-mist">
-                          {MEAL_LABEL[it.meal]} · {it.time}
+                          {MEAL_LABEL[it.meal] || it.meal} · {it.time}
                         </p>
                       </div>
                       <span className="text-[12px] font-extrabold text-ink">{fmt(food.calories * (it.servings || 1))} kcal</span>
                       <button
-                        className="icon-btn h-7 w-7 text-mist/60 opacity-0 group-hover:opacity-100 hover:bg-red-50! hover:text-red-500!"
-                        onClick={() => removeDiaryItem(it.meal, it.id)}
-                        aria-label="Delete entry"
+                        className="icon-btn h-8 w-8 text-mist/60 opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:text-red-500"
+                        onClick={() => handleDeleteWithUndo(it.meal, it, food)}
+                        aria-label={`Delete ${food.name}`}
                       >
                         <Trash2 size={13} />
                       </button>
@@ -234,6 +398,86 @@ export default function Nutrition() {
       </div>
 
       <AddFoodModal open={modal.open} defaultMeal={modal.meal} focusFoodId={modal.focus} onClose={() => setModal((m) => ({ ...m, open: false }))} />
+
+      {/* Edit Entry Modal */}
+      {editingItem && (
+        <Modal
+          open={Boolean(editingItem)}
+          onClose={() => setEditingItem(null)}
+          title="Edit food log"
+          subtitle={`Adjust meal or quantity for ${editingItem.food?.name}`}
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="mb-1.5 block text-xs font-extrabold text-ink">Meal</label>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {MEAL_TYPES.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => setEditingItem((e) => ({ ...e, targetMeal: m.id }))}
+                    className={`flex h-10 items-center justify-center rounded-xl border text-xs font-bold transition-all min-h-[44px] ${
+                      editingItem.targetMeal === m.id
+                        ? "border-leaf-400 bg-leaf-100 text-leaf-800 shadow-xs"
+                        : "border-line bg-white text-mist hover:border-leaf-200 hover:text-ink"
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-xs font-extrabold text-ink">Quantity / Servings</label>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingItem((e) => ({ ...e, quantity: Math.max(0.25, (Number(e.quantity) || 1) - 0.5) }))}
+                  className="icon-btn h-11 w-11 min-h-[44px] min-w-[44px] rounded-xl border border-line bg-white text-ink"
+                  aria-label="Decrease quantity"
+                >
+                  -
+                </button>
+                <input
+                  type="number"
+                  step="0.25"
+                  min="0.25"
+                  max="50"
+                  value={editingItem.quantity}
+                  onChange={(e) => setEditingItem((prev) => ({ ...prev, quantity: e.target.value }))}
+                  className="input h-11 text-center font-bold text-ink"
+                />
+                <button
+                  type="button"
+                  onClick={() => setEditingItem((e) => ({ ...e, quantity: (Number(e.quantity) || 1) + 0.5 }))}
+                  className="icon-btn h-11 w-11 min-h-[44px] min-w-[44px] rounded-xl border border-line bg-white text-ink"
+                  aria-label="Increase quantity"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                className="btn btn-outline min-h-[44px]"
+                onClick={() => setEditingItem(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary min-h-[44px]"
+                onClick={saveEdit}
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
