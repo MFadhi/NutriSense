@@ -132,7 +132,7 @@ export default function Topbar({ onMenu }) {
                           onClick={() => openRecipe(r)}
                           className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition-colors hover:bg-leaf-75"
                         >
-                          <img src={r.image} alt="" className="h-[34px] w-[34px] rounded-lg object-cover" />
+
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-[13px] font-bold text-ink">{r.name}</span>
                             <span className="block text-[11px] font-medium text-mist">{r.time} min · {r.calories} kcal</span>
