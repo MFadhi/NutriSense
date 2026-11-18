@@ -15,7 +15,7 @@ import {
   Lightbulb,
   PackagePlus,
   Quote,
-  ScanLine,
+  UtensilsCrossed,
   Wheat,
   Wind,
   RotateCcw,
@@ -40,10 +40,10 @@ const MACRO_META = [
 ];
 
 const QUICK_ACTIONS = [
-  { to: "/lab-reports", icon: FileUp,     label: "Upload Lab Report", desc: "Get nutrition insights" },
-  { to: "/scanner",     icon: ScanLine,   label: "Scan Food",          desc: "Identify a meal photo" },
-  { to: "/pantry",      icon: PackagePlus, label: "Add Pantry Items",  desc: "Track ingredients" },
-  { to: "/recipes",     icon: ChefHat,    label: "Explore Recipes",    desc: "Cook from your pantry" },
+  { to: "/nutrition",   icon: UtensilsCrossed, label: "Log Meals",        desc: "Track daily intake" },
+  { to: "/lab-reports", icon: FileUp,          label: "Upload Lab Report", desc: "Get nutrition insights" },
+  { to: "/pantry",      icon: PackagePlus,      label: "Add Pantry Items",  desc: "Track ingredients" },
+  { to: "/recipes",     icon: ChefHat,         label: "Explore Recipes",    desc: "Cook from your pantry" },
 ];
 
 export default function Dashboard() {

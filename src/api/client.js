@@ -12,7 +12,7 @@
 
 import { getAccessToken, getRefreshToken, setAccessToken, clearTokens } from '../auth/tokenStore';
 
-const BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+const BASE = import.meta.env.VITE_API_URL || 'http://localhost:5001/api/v1';
 const TIMEOUT_MS = 8000;
 
 /** Dispatched globally so AuthContext can react and sign the user out. */

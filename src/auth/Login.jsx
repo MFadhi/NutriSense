@@ -36,8 +36,14 @@ export default function Login() {
       navigate(origin, { replace: true });
     } catch (err) {
       const msg = err?.message || String(err);
-      if (msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("network_error")) {
-        setError("Backend server is not running at localhost:5000. Start it with 'flask run'.");
+      if (
+        msg.includes("Failed to fetch") ||
+        msg.includes("NetworkError") ||
+        msg.includes("network_error") ||
+        msg.toLowerCase().includes("network error") ||
+        err?.code === "network_error"
+      ) {
+        setError("Backend server is not running at localhost:5001. Start it with 'cd backend && flask run'.");
       } else {
         setError(msg || "Invalid email or password.");
       }

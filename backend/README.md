@@ -95,7 +95,6 @@ backend/
 | DELETE | /api/v1/water/<id> | ✓ | Delete water log |
 | GET | /api/v1/dashboard/daily?date= | ✓ | Daily summary & targets |
 | GET | /api/v1/dashboard/weekly?end=&days= | ✓ | Weekly history (Recharts) |
-| GET | /api/v1/barcodes/<code> | ✓ | Barcode lookup (OFF + cache) |
 
 See `docs/api.md` for full request/response schemas.
 

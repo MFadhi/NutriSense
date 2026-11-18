@@ -4,7 +4,6 @@ import Dashboard from "./pages/Dashboard";
 import Nutrition from "./pages/Nutrition";
 import LabReports from "./pages/LabReports";
 import Weather from "./pages/Weather";
-import FoodScanner from "./pages/FoodScanner";
 import Pantry from "./pages/Pantry";
 import Recipes from "./pages/Recipes";
 import ShoppingList from "./pages/ShoppingList";
@@ -20,7 +19,6 @@ export default function App() {
         <Route path="nutrition" element={<Nutrition />} />
         <Route path="lab-reports" element={<LabReports />} />
         <Route path="weather" element={<Weather />} />
-        <Route path="scanner" element={<FoodScanner />} />
         <Route path="pantry" element={<Pantry />} />
         <Route path="recipes" element={<Recipes />} />
         <Route path="shopping" element={<ShoppingList />} />

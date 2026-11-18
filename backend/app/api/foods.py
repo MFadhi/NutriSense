@@ -7,8 +7,24 @@ from ..models.log import FoodLog
 from ..models.user import User
 from ..services.food_search import search_foods, invalidate_cache
 from ..services.food_compatibility import get_warnings
-from ..services.barcode import validate_gs1_barcode, VALID_ALLERGENS
 from ..errors import error_response
+
+VALID_ALLERGENS = [
+    "peanut",
+    "tree_nut",
+    "milk",
+    "egg",
+    "gluten",
+    "soy",
+    "fish",
+    "shellfish",
+    "sesame",
+    "mustard",
+    "celery",
+    "lupin",
+    "molluscs",
+    "sulphites",
+]
 
 foods_bp = Blueprint("foods", __name__)
 
@@ -300,16 +316,10 @@ def create_custom_food():
         is_def = bool(p.get("default")) or (not has_default and idx == 0)
         validated_portions.append((label, grams, is_def))
 
-    # Validate barcode (if provided)
+    # Barcode (if provided)
     barcode = data.get("barcode")
     if barcode:
         barcode = str(barcode).strip()
-        if not validate_gs1_barcode(barcode):
-            return error_response(
-                "invalid_barcode",
-                "Barcode must be 8, 12, or 13 digits with a valid GS1 check digit.",
-                status=400,
-            )
         # Check duplicate barcode among caller's custom foods
         existing = Food.query.filter_by(barcode=barcode, owner_user_id=user_id).first()
         if existing:
@@ -424,8 +434,6 @@ def update_custom_food(food_id):
         bc = data["barcode"]
         if bc:
             bc = str(bc).strip()
-            if not validate_gs1_barcode(bc):
-                return error_response("invalid_barcode", "Invalid GS1 barcode.", status=400)
             dup = Food.query.filter(
                 Food.barcode == bc,
                 Food.owner_user_id == user_id,

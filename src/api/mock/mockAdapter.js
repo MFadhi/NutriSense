@@ -216,29 +216,3 @@ export const mockDashboard = {
     };
   },
 };
-
-export const mockBarcodes = {
-  lookupBarcode: async (code) => {
-    if (code === "404" || code === "0000000000000") {
-      throw { code: "product_not_found", message: "Product not found", status: 404 };
-    }
-    return {
-      barcode: code,
-      name_en: "Organic Whole Milk",
-      kcal_per_100g: 65,
-      protein_per_100g: 3.3,
-      carbs_per_100g: 4.8,
-      fat_per_100g: 3.6,
-      fibre_per_100g: 0,
-      diet: "veg",
-      diet_verified: true,
-      needs_review: false,
-      missing_fields: [],
-      warnings: [],
-      portions: [
-        { label: "1 glass (250ml)", grams: 250, is_default: true },
-        { label: "100ml", grams: 100, is_default: false },
-      ],
-    };
-  },
-};

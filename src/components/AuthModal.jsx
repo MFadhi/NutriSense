@@ -75,8 +75,14 @@ export default function AuthModal({ open, onClose }) {
       }
     } catch (err) {
       const msg = err?.message || String(err);
-      if (msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("network_error")) {
-        setError("Backend server is not running. Start it with 'flask run' or use guest mode.");
+      if (
+        msg.includes("Failed to fetch") ||
+        msg.includes("NetworkError") ||
+        msg.includes("network_error") ||
+        msg.toLowerCase().includes("network error") ||
+        err?.code === "network_error"
+      ) {
+        setError("Backend server is not running at localhost:5001. Start it with 'flask run' or use guest mode.");
       } else {
         setError(msg || "An error occurred. Please try again.");
       }
