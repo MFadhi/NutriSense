@@ -216,3 +216,207 @@ export const mockDashboard = {
     };
   },
 };
+
+let _mockConsent = true;
+let _mockLabResults = [
+  {
+    id: 1,
+    parameter: "fasting_blood_glucose",
+    value: 95.0,
+    unit: "mg/dL",
+    test_date: "2026-11-15",
+    classification: "within_reference",
+    notes: "Annual checkup",
+  },
+  {
+    id: 2,
+    parameter: "haemoglobin",
+    value: 13.8,
+    unit: "g/dL",
+    test_date: "2026-11-15",
+    classification: "within_reference",
+    notes: "",
+  },
+];
+
+export const mockLab = {
+  getConsent: async () => ({ consented: _mockConsent, consented_at: "2026-11-01T00:00:00Z" }),
+  setConsent: async (consented) => {
+    _mockConsent = consented;
+    return { consented, consented_at: new Date().toISOString() };
+  },
+  withdrawConsent: async () => {
+    _mockConsent = false;
+    return { consented: false };
+  },
+  uploadReport: async () => ({
+    report_id: 101,
+    filename: "sample_lab_report.pdf",
+    draft: {
+      test_date: "2026-11-18",
+      extracted_parameters: [
+        {
+          parameter: "fasting_blood_glucose",
+          display_name: "Fasting Blood Glucose",
+          value: 108.0,
+          unit: "mg/dL",
+          confidence: 0.95,
+          raw_text: "Fasting Blood Glucose : 108 mg/dL",
+          needs_review: false,
+        },
+        {
+          parameter: "vitamin_d",
+          display_name: "Vitamin D (25-OH)",
+          value: 22.0,
+          unit: "ng/mL",
+          confidence: 0.88,
+          raw_text: "Vitamin D 25-OH : 22 ng/mL",
+          needs_review: false,
+        },
+      ],
+      total_extracted: 2,
+      is_draft: true,
+      requires_confirmation: true,
+    },
+  }),
+  listReports: async () => [
+    {
+      id: 101,
+      report_date: "2026-11-18",
+      original_filename: "sample_lab_report.pdf",
+      processing_status: "completed",
+      result_count: 2,
+    },
+  ],
+  getReport: async (id) => ({
+    id,
+    report_date: "2026-11-18",
+    original_filename: "sample_lab_report.pdf",
+    results: _mockLabResults,
+  }),
+  deleteReport: async () => ({ message: "Report deleted" }),
+  saveResults: async (results) => {
+    const saved = results.map((r, i) => ({
+      id: Date.now() + i,
+      ...r,
+      classification: r.value > 120 ? "above_reference" : "within_reference",
+    }));
+    _mockLabResults.push(...saved);
+    return saved;
+  },
+  listResults: async () => _mockLabResults,
+  getResultsHistory: async () => {
+    const history = {};
+    const params = [
+      "fasting_blood_glucose",
+      "hba1c",
+      "ldl_cholesterol",
+      "hdl_cholesterol",
+      "triglycerides",
+      "haemoglobin",
+      "vitamin_d",
+      "vitamin_b12",
+    ];
+    params.forEach((p) => {
+      const recs = _mockLabResults.filter((r) => r.parameter === p);
+      history[p] = {
+        parameter: p,
+        display_name: p.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+        standard_unit: "mg/dL",
+        records: recs,
+        latest: recs[recs.length - 1] || null,
+        previous: recs[recs.length - 2] || null,
+        delta: null,
+      };
+    });
+    return history;
+  },
+  updateResult: async (id, patch) => {
+    const idx = _mockLabResults.findIndex((r) => r.id === id);
+    if (idx !== -1) {
+      _mockLabResults[idx] = { ..._mockLabResults[idx], ...patch };
+      return _mockLabResults[idx];
+    }
+    return patch;
+  },
+  deleteResult: async (id) => {
+    _mockLabResults = _mockLabResults.filter((r) => r.id !== id);
+    return { message: "Deleted" };
+  },
+  getInsights: async () => ({
+    total_parameters_recorded: _mockLabResults.length,
+    normal_count: 2,
+    attention_count: 0,
+    latest_test_date: "2026-11-15",
+    insights: [
+      {
+        parameter: "fasting_blood_glucose",
+        display_name: "Fasting Blood Glucose",
+        value: 95.0,
+        unit: "mg/dL",
+        classification: "within_reference",
+        label: "Normal Fasting Glucose",
+        reference_range: { min: 70.0, max: 99.0 },
+        explanation: "Normal fasting blood glucose is between 70 and 99 mg/dL.",
+        recommendations: [],
+      },
+    ],
+  }),
+  evaluateAdHoc: async (param, val, unit) => ({
+    parameter: param,
+    value: val,
+    unit,
+    classification: "within_reference",
+  }),
+};
+
+export const mockWeather = {
+  getCurrent: async (lat, lon, city) => ({
+    latitude: lat,
+    longitude: lon,
+    city: city || "Pune",
+    temperature: 31.0,
+    humidity: 58.0,
+    apparent_temperature: 33.5,
+    weather_code: 1,
+    condition_text: "Mainly clear",
+    fetched_at: new Date().toISOString(),
+  }),
+  getRecommendations: async (lat, lon, city) => ({
+    weather: {
+      latitude: lat,
+      longitude: lon,
+      city: city || "Pune",
+      temperature: 31.0,
+      humidity: 58.0,
+      apparent_temperature: 33.5,
+      weather_code: 1,
+      condition_text: "Mainly clear",
+      fetched_at: new Date().toISOString(),
+    },
+    hydration: {
+      baseline_water_ml: 2500,
+      weather_adjustment_ml: 250,
+      suggested_total_ml: 2750,
+      temperature: 31.0,
+      humidity: 58.0,
+      explanation: "Warm weather (31.0°C) elevates daily hydration requirements by +250 ml.",
+    },
+    food_suggestions: [
+      {
+        id: 1,
+        name_en: "Cucumber Salad",
+        category: "Salads",
+        diet: "vegan",
+        tags: ["cooling", "hydrating"],
+      },
+      {
+        id: 2,
+        name_en: "Coconut Water",
+        category: "Drinks",
+        diet: "vegan",
+        tags: ["electrolyte", "cooling"],
+      },
+    ],
+  }),
+};

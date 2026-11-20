@@ -49,6 +49,49 @@ flask run
 pytest -v
 ```
 
+## Phase 4: Laboratory Management, Rule Engine & Weather Integration
+
+### 1. Data Security & Encryption
+- All laboratory parameter values are encrypted at rest with **AES-256-GCM**.
+- Key loaded via `LAB_ENCRYPTION_KEY` environment variable (32-byte base64 string).
+- Explicit user consent required prior to storing any clinical records (`/api/v1/lab/consent`).
+
+### 2. Supported Laboratory Parameters
+1. Fasting Blood Glucose (`mg/dL`)
+2. HbA1c (`%`)
+3. LDL Cholesterol (`mg/dL`)
+4. HDL Cholesterol (`mg/dL`)
+5. Triglycerides (`mg/dL`)
+6. Haemoglobin (`g/dL`)
+7. Vitamin D (25-OH) (`ng/mL`)
+8. Vitamin B12 (`pg/mL`)
+
+### 3. Rule Engine
+Configured via JSON files in `app/rules/`:
+- `lab_reference_ranges.json`: Reference boundaries, standard units, alternative unit conversion factors.
+- `lab_nutrition_rules.json`: Explainable dietary recommendations mapped to Indian food database tags and categories, respecting dietary preferences (veg/vegan/nonveg) and excluding allergens.
+
+### 4. OCR Extraction
+- Modular OCR service in `app/services/ocr_service.py` using `pypdf` and `pytesseract`.
+- Extracted values returned as **editable drafts** with confidence scoring. Values are never saved automatically without explicit user confirmation.
+
+### 5. Weather Integration
+- Open-Meteo API integration with 30-minute database caching (`WeatherCache`).
+- Weather-aware hydration guidance with temperature/humidity adjustments.
+- Climate-tailored food recommendations (cooling, hydrating, warming foods).
+
+### 6. Phase 4 API Endpoints
+- `GET, POST, DELETE /api/v1/lab/consent`
+- `POST /api/v1/lab/reports/upload` (multipart/form-data)
+- `GET, DELETE /api/v1/lab/reports`, `GET /api/v1/lab/reports/<id>`
+- `GET, POST /api/v1/lab/results`
+- `GET /api/v1/lab/results/history`
+- `PATCH, DELETE /api/v1/lab/results/<id>`
+- `GET /api/v1/lab/insights`
+- `POST /api/v1/lab/insights/evaluate`
+- `GET /api/v1/weather/current`
+- `GET /api/v1/weather/recommendations`
+
 ## Project Structure
 
 ```

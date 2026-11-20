@@ -1,193 +1,303 @@
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { useState, useEffect } from "react";
 import {
-  Citrus,
-  CloudRain,
   CloudSun,
-  Droplet,
-  Droplets,
-  Eye,
-  Flame,
-  MapPin,
-  Milk,
-  Salad,
-  Soup,
+  CloudRain,
   Sun,
-  Thermometer,
-  Umbrella,
+  Droplets,
   Wind,
+  MapPin,
+  Thermometer,
+  Sparkles,
+  RefreshCw,
+  Plus,
+  Info,
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
-import { Badge, Card, ChartTooltip, PageHeader, ProgressBar, Ring, SectionTitle } from "../components/ui";
-import { FORECAST, HOURLY, HYDRATION_PLAN, WEATHER, WEATHER_FOODS, WEATHER_TIPS } from "../services/weather";
+import { Badge, Card, PageHeader, ProgressBar, Ring, SectionTitle } from "../components/ui";
+import { getWeatherRecommendations } from "../api/weather";
 
-const DAY_ICON = { sun: Sun, cloudsun: CloudSun, rain: CloudRain };
-const FOOD_ICON = { citrus: Citrus, salad: Salad, glass: Droplets, milk: Milk, soup: Soup, droplets: Droplets };
+const POPULAR_CITIES = [
+  { name: "Pune", lat: 18.5204, lon: 73.8567 },
+  { name: "Bengaluru", lat: 12.9716, lon: 77.5946 },
+  { name: "Mumbai", lat: 19.0760, lon: 72.8777 },
+  { name: "Delhi", lat: 28.6139, lon: 77.2090 },
+  { name: "Hyderabad", lat: 17.3850, lon: 78.4867 },
+  { name: "Chennai", lat: 13.0827, lon: 80.2707 },
+  { name: "Kolkata", lat: 22.5726, lon: 88.3639 },
+];
 
 export default function Weather() {
-  const { water, addWater } = useApp();
+  const { water, targets, addWater, toast } = useApp();
+
+  const [city, setCity] = useState("Pune");
+  const [coords, setCoords] = useState({ lat: 18.5204, lon: 73.8567 });
+  const [weatherData, setWeatherData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchWeather = async (lat, lon, cityName) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getWeatherRecommendations(lat, lon, cityName);
+      setWeatherData(data);
+    } catch (err) {
+      setError(err?.message || "Failed to load live weather.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // Try browser geolocation on initial mount
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          setCoords({ lat, lon });
+          setCity("Local Device");
+          fetchWeather(lat, lon, "Local Device");
+        },
+        () => {
+          // Denied or timed out -> use default Pune
+          fetchWeather(coords.lat, coords.lon, city);
+        },
+        { timeout: 5000 }
+      );
+    } else {
+      fetchWeather(coords.lat, coords.lon, city);
+    }
+  }, []);
+
+  const handleSelectCity = (c) => {
+    setCity(c.name);
+    setCoords({ lat: c.lat, lon: c.lon });
+    fetchWeather(c.lat, c.lon, c.name);
+  };
+
+  const currentW = weatherData?.weather;
+  const hydration = weatherData?.hydration;
+  const foodSuggestions = weatherData?.food_suggestions || [];
+
+  const baselineWater = targets?.water || hydration?.baseline_water_ml || 2500;
+  const adjustment = hydration?.weather_adjustment_ml || 0;
+  const adjustedTarget = baselineWater + adjustment;
+  const progressPct = Math.min(100, Math.round((water / adjustedTarget) * 100));
 
   return (
-    <div className="space-y-5">
-      <PageHeader title="Weather Intelligence" subtitle="Context-aware nutrition that adapts to the day's climate conditions.">
-        <Badge color="blue">
-          <MapPin size={11} /> {WEATHER.city}
-        </Badge>
+    <div className="space-y-6">
+      <PageHeader
+        title="Weather Intelligence"
+        subtitle="Context-aware nutrition and dynamic hydration adapting to real-time climate conditions."
+      >
+        <div className="flex items-center gap-2">
+          <Badge color="blue">
+            <MapPin size={11} className="mr-1 inline" /> {city}
+          </Badge>
+          <button
+            onClick={() => fetchWeather(coords.lat, coords.lon, city)}
+            className="icon-btn"
+            title="Refresh weather"
+          >
+            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+          </button>
+        </div>
       </PageHeader>
 
-      {/* Hero conditions */}
-      <div className="grid gap-4 lg:grid-cols-12">
-        <Card className="relative overflow-hidden p-6 lg:col-span-7">
-          <div className="absolute -top-16 -right-16 h-48 w-48 rounded-full bg-leaf-100" />
-          <div className="absolute -top-6 -right-6 h-24 w-24 rounded-full bg-leaf-200/60" />
-          <div className="relative">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[11px] font-extrabold tracking-[0.14em] text-mist uppercase">{WEATHER.condition} · {WEATHER.updated}</p>
-                <div className="mt-2 flex items-start">
-                  <span className="font-display text-7xl leading-none font-semibold tracking-tight text-ink">{WEATHER.temp}</span>
-                  <span className="mt-2 text-xl font-bold text-mist">°C</span>
-                </div>
-                <p className="mt-2 text-sm font-bold text-ink">Feels like {WEATHER.feelsLike}°C with {WEATHER.humidity}% humidity</p>
-              </div>
-              <span className="grid h-20 w-20 place-items-center rounded-3xl bg-leaf-400/15 text-leaf-500">
-                <CloudSun size={44} strokeWidth={1.6} />
-              </span>
-            </div>
+      {/* City Switcher */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-bold text-mist">Quick Location:</span>
+        {POPULAR_CITIES.map((c) => (
+          <button
+            key={c.name}
+            onClick={() => handleSelectCity(c)}
+            className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
+              city === c.name
+                ? "bg-leaf-500 text-white shadow-xs"
+                : "border border-line bg-white text-mist hover:bg-leaf-50 hover:text-ink"
+            }`}
+          >
+            {c.name}
+          </button>
+        ))}
+      </div>
 
-            <div className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-              {[
-                { icon: Droplets, label: "Humidity", value: `${WEATHER.humidity}%` },
-                { icon: Wind, label: "Wind", value: `${WEATHER.wind} km/h` },
-                { icon: Sun, label: "UV index", value: `${WEATHER.uvIndex} · ${WEATHER.uv}` },
-                { icon: Eye, label: "Visibility", value: `${WEATHER.visibility} km` },
-              ].map(({ icon: Icon, label, value }) => (
-                <div key={label} className="rounded-xl border border-line bg-white/80 px-3.5 py-3 shadow-sm">
-                  <div className="flex items-center gap-1.5 text-[10px] font-extrabold tracking-wide text-mist uppercase">
-                    <Icon size={11} className="text-leaf-500" /> {label}
+      {loading && !weatherData ? (
+        <Card className="flex min-h-[300px] items-center justify-center p-8">
+          <div className="text-center">
+            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-leaf-500 border-t-transparent" />
+            <p className="mt-3 text-xs font-semibold text-mist">Connecting to Open-Meteo forecast...</p>
+          </div>
+        </Card>
+      ) : error ? (
+        <Card className="border-red-200 bg-red-50/50 p-6 text-center text-xs text-red-600">
+          <p className="font-bold">Weather service unavailable</p>
+          <p className="mt-1">{error}</p>
+          <button
+            onClick={() => fetchWeather(coords.lat, coords.lon, city)}
+            className="btn btn-outline btn-xs mt-3 text-red-700"
+          >
+            Retry
+          </button>
+        </Card>
+      ) : (
+        <>
+          {/* Hero Weather & Hydration Grid */}
+          <div className="grid gap-5 lg:grid-cols-12">
+            {/* Live Weather Card */}
+            <Card className="relative overflow-hidden p-6 lg:col-span-7">
+              <div className="absolute -top-16 -right-16 h-48 w-48 rounded-full bg-leaf-100/60" />
+              <div className="relative">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-[11px] font-extrabold tracking-wider text-mist uppercase">
+                      {currentW?.condition_text || "Clear"} · {city}
+                    </p>
+                    <div className="mt-2 flex items-start">
+                      <span className="font-display text-7xl font-bold tracking-tight text-ink">
+                        {Math.round(currentW?.temperature || 26)}
+                      </span>
+                      <span className="mt-2 text-xl font-bold text-mist">°C</span>
+                    </div>
+                    <p className="mt-2 text-sm font-bold text-ink">
+                      Feels like {Math.round(currentW?.apparent_temperature || currentW?.temperature || 26)}°C with{" "}
+                      {Math.round(currentW?.humidity || 50)}% humidity
+                    </p>
                   </div>
-                  <p className="mt-1 text-base font-extrabold text-ink">{value}</p>
+                  <div className="grid h-20 w-20 place-items-center rounded-3xl bg-leaf-100 text-leaf-600">
+                    <CloudSun size={44} strokeWidth={1.8} />
+                  </div>
                 </div>
-              ))}
-            </div>
 
-            <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-leaf-200 bg-leaf-100 px-4 py-3">
-              <Thermometer size={15} className="mt-0.5 shrink-0 text-leaf-600" />
-              <p className="font-display text-[15px] leading-relaxed text-leaf-800 italic">
-                It's {WEATHER.temp}°C today! Stay hydrated and include water-rich fruits in your meals.
+                <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl border border-line bg-leaf-50/20 p-3">
+                    <div className="flex items-center gap-1.5 text-xs text-mist">
+                      <Droplets size={14} className="text-leaf-500" /> Humidity
+                    </div>
+                    <p className="mt-1 text-base font-extrabold text-ink">{Math.round(currentW?.humidity || 50)}%</p>
+                  </div>
+                  <div className="rounded-xl border border-line bg-leaf-50/20 p-3">
+                    <div className="flex items-center gap-1.5 text-xs text-mist">
+                      <Thermometer size={14} className="text-leaf-500" /> Apparent Temp
+                    </div>
+                    <p className="mt-1 text-base font-extrabold text-ink">
+                      {Math.round(currentW?.apparent_temperature || currentW?.temperature || 26)}°C
+                    </p>
+                  </div>
+                  <div className="col-span-2 rounded-xl border border-line bg-leaf-50/20 p-3 sm:col-span-1">
+                    <div className="flex items-center gap-1.5 text-xs text-mist">
+                      <Sparkles size={14} className="text-leaf-500" /> Source
+                    </div>
+                    <p className="mt-1 text-xs font-bold text-ink">Open-Meteo Live</p>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Weather-Aware Hydration Card */}
+            <Card className="p-6 lg:col-span-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-ink">Hydration Guidance</h3>
+                  <p className="text-xs text-mist">
+                    {adjustment > 0 ? `+${adjustment} ml climate adjustment` : "Standard baseline target"}
+                  </p>
+                </div>
+                <Badge color={adjustment > 0 ? "blue" : "green"}>
+                  {adjustment > 0 ? "Heat Aware" : "Optimal"}
+                </Badge>
+              </div>
+
+              <div className="mt-5 flex items-center gap-5">
+                <div className="shrink-0">
+                  <Ring value={water} max={adjustedTarget} size={80} strokeWidth={8}>
+                    <span className="text-xs font-extrabold text-ink">{progressPct}%</span>
+                  </Ring>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-ink">
+                    <span className="text-xl font-extrabold text-leaf-600">{(water / 1000).toFixed(2)} L</span>
+                    {" "}of {(adjustedTarget / 1000).toFixed(2)} L
+                  </p>
+                  <p className="mt-1 text-[11px] text-mist leading-relaxed">
+                    Baseline: {(baselineWater / 1000).toFixed(1)} L
+                    {adjustment > 0 && ` + ${(adjustment / 1000).toFixed(2)} L due to temperature/humidity`}
+                  </p>
+                  <button
+                    onClick={() => {
+                      addWater(250);
+                      toast("Logged 250 ml of water.");
+                    }}
+                    className="btn btn-primary btn-xs mt-3"
+                  >
+                    <Plus size={12} className="mr-1" /> Log 250 ml
+                  </button>
+                </div>
+              </div>
+
+              {hydration?.explanation && (
+                <div className="mt-5 rounded-xl bg-leaf-50/50 p-3 border border-leaf-100 text-[11px] text-leaf-800 leading-relaxed">
+                  <Info size={13} className="mr-1 inline text-leaf-600" />
+                  {hydration.explanation}
+                </div>
+              )}
+            </Card>
+          </div>
+
+          {/* Weather-Based Food Recommendations */}
+          <div>
+            <div className="mb-3">
+              <SectionTitle title="Climate-Optimized Food Recommendations" />
+              <p className="text-xs text-mist">
+                Foods selected from your Indian food database to balance internal body temperature, electrolyte levels, and digestion.
               </p>
             </div>
-          </div>
-        </Card>
 
-        {/* Hydration plan */}
-        <Card className="p-5 lg:col-span-5">
-          <SectionTitle title="Hydration plan" subtitle="+500 ml heat adjustment applied" />
-          <div className="mt-4 flex items-center gap-5">
-            <Ring value={water} max={HYDRATION_PLAN.target} size={132} stroke={12} color="var(--color-leaf-500)">
-              <Droplets size={16} className="text-leaf-500" />
-              <span className="mt-1 text-xl font-extrabold text-ink">{(water / 1000).toFixed(1)} L</span>
-              <span className="text-[9px] font-bold tracking-[0.12em] text-mist uppercase">of {(HYDRATION_PLAN.target / 1000).toFixed(1)} L</span>
-            </Ring>
-            <div className="flex-1 space-y-3">
-              <p className="text-[12px] leading-relaxed font-semibold text-mist">{HYDRATION_PLAN.reason}</p>
-              <div>
-                <div className="mb-1 flex justify-between text-[10.5px] font-extrabold text-mist uppercase">
-                  <span>Progress</span>
-                  <span>{Math.min(100, Math.round((water / HYDRATION_PLAN.target) * 100))}%</span>
-                </div>
-                <ProgressBar value={water} max={HYDRATION_PLAN.target} height={8} color="var(--color-leaf-500)" />
-              </div>
-              <button className="btn btn-primary btn-sm w-full" onClick={() => addWater(250)}>
-                <Droplet size={14} /> Log 250 ml
-              </button>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Trend + forecast */}
-      <div className="grid gap-4 lg:grid-cols-12">
-        <Card className="p-5 lg:col-span-7">
-          <SectionTitle title="Temperature today" subtitle="Hourly forecast (°C)" />
-          <div className="mt-3 h-[220px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={HOURLY} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="tempFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#4caf50" stopOpacity={0.3} />
-                    <stop offset="100%" stopColor="#4caf50" stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid vertical={false} stroke="#e0ead9" strokeDasharray="4 6" />
-                <XAxis dataKey="time" tickLine={false} axisLine={false} tick={{ fill: "#78909c", fontSize: 10.5, fontWeight: 700 }} dy={6} />
-                <YAxis tickLine={false} axisLine={false} tick={{ fill: "#b3c4ad", fontSize: 9.5, fontWeight: 700 }} domain={[20, 38]} unit="°" />
-                <Tooltip content={<ChartTooltip unit="°C" />} cursor={{ stroke: "#a5d66d", strokeWidth: 1.5, strokeDasharray: "4 4" }} />
-                <Area type="monotone" dataKey="temp" name="Temp" stroke="#4caf50" strokeWidth={2.5} fill="url(#tempFill)" dot={{ r: 3, fill: "#fff", stroke: "#4caf50", strokeWidth: 2 }} activeDot={{ r: 5, fill: "#33691e" }} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-
-        <Card className="p-5 lg:col-span-5">
-          <SectionTitle title="6-day outlook" subtitle="Plan meals and activity ahead" />
-          <ul className="mt-3 space-y-1">
-            {FORECAST.map((d) => {
-              const Icon = DAY_ICON[d.icon] || Sun;
-              return (
-                <li key={d.day} className="flex items-center gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-leaf-50">
-                  <span className="w-12 text-[12.5px] font-extrabold text-ink">{d.day}</span>
-                  <Icon size={17} className={d.icon === "rain" ? "text-sky-500" : "text-leaf-500"} />
-                  <span className="flex-1 text-[11.5px] font-semibold text-mist">{d.note}</span>
-                  <span className="text-[12.5px] font-extrabold text-ink">{d.hi}°</span>
-                  <span className="w-7 text-right text-[12.5px] font-bold text-mist">{d.lo}°</span>
-                </li>
-              );
-            })}
-          </ul>
-        </Card>
-      </div>
-
-      {/* Weather-smart foods */}
-      <div>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-extrabold tracking-tight text-ink">Eat smart for the heat</h2>
-          <Badge color="green">
-            <Umbrella size={11} /> Heat-friendly picks
-          </Badge>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {WEATHER_FOODS.map((f) => {
-            const Icon = FOOD_ICON[f.icon] || Salad;
-            return (
-              <Card key={f.name} hover className="flex gap-3.5 p-4">
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-leaf-100 text-leaf-600">
-                  <Icon size={19} />
-                </span>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-[13.5px] font-extrabold text-ink">{f.name}</p>
-                    <span className="rounded-full bg-leaf-75 px-2 py-0.5 text-[9.5px] font-extrabold text-leaf-700">{f.kcal}</span>
-                  </div>
-                  <p className="mt-1.5 text-[12px] leading-relaxed font-medium text-mist">{f.why}</p>
-                </div>
+            {foodSuggestions.length === 0 ? (
+              <Card className="p-6 text-center text-xs text-mist">
+                No specific climate suggestions found for current preferences.
               </Card>
-            );
-          })}
-        </div>
-      </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {foodSuggestions.map((food) => (
+                  <Card key={food.id} className="p-4 transition-all hover:shadow-md">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-ink">{food.name_en}</p>
+                        {food.name_hi && (
+                          <p className="text-[11px] text-mist">{food.name_hi}</p>
+                        )}
+                      </div>
+                      <Badge color={food.diet === "veg" ? "green" : food.diet === "vegan" ? "blue" : "amber"}>
+                        {food.diet}
+                      </Badge>
+                    </div>
 
-      {/* Tips */}
-      <Card className="p-5">
-        <SectionTitle title="Weather-smart tips" subtitle="Small adjustments for hot, humid days" />
-        <ul className="mt-3 grid gap-2.5 sm:grid-cols-2">
-          {WEATHER_TIPS.map((tip, i) => (
-            <li key={i} className="flex items-start gap-2.5 rounded-xl bg-leaf-75 px-3.5 py-3">
-              <Flame size={14} className="mt-0.5 shrink-0 text-leaf-500" />
-              <p className="text-[12.5px] leading-relaxed font-semibold text-leaf-800">{tip}</p>
-            </li>
-          ))}
-        </ul>
-      </Card>
+                    <div className="mt-3 flex flex-wrap gap-1">
+                      {(food.tags || []).slice(0, 3).map((tag, idx) => (
+                        <span
+                          key={idx}
+                          className="rounded-md bg-leaf-50 px-2 py-0.5 text-[10px] font-semibold text-leaf-700"
+                        >
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between border-t border-line/60 pt-2 text-[11px] text-mist">
+                      <span>{Math.round(food.kcal_per_100g || 0)} kcal / 100g</span>
+                      <span className="font-semibold text-leaf-700">
+                        {food.protein_per_100g || 0}g protein
+                      </span>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

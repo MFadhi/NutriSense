@@ -26,6 +26,7 @@ import { IMAGES, MEAL_TYPES } from "../data/foods";
 import { HEALTH_TIPS, QUOTES, WEEKLY } from "../data/extras";
 import { WEATHER } from "../services/weather";
 import { getDailyDashboard, getWeeklyDashboard } from "../api/dashboard";
+import { getWeatherRecommendations } from "../api/weather";
 import { localToday } from "../utils/date";
 
 const greeting = () => {
@@ -53,8 +54,13 @@ export default function Dashboard() {
   /* API data */
   const [dailyData, setDailyData]   = useState(null);
   const [weeklyData, setWeeklyData] = useState(null);
+  const [liveWeather, setLiveWeather] = useState(null);
 
   const isAuthenticated = auth?.isAuthenticated;
+
+  useEffect(() => {
+    getWeatherRecommendations().then(setLiveWeather).catch(() => {});
+  }, []);
 
   // Load API data when authenticated
   useEffect(() => {
@@ -253,12 +259,19 @@ export default function Dashboard() {
         <Card hover className="relative cursor-pointer overflow-hidden p-5 lg:col-span-7" onClick={() => navigate("/weather")}>
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-[11px] font-extrabold tracking-[0.12em] text-mist uppercase">Weather intelligence · {WEATHER.city}</p>
+              <p className="text-[11px] font-extrabold tracking-[0.12em] text-mist uppercase">
+                Weather intelligence · {liveWeather?.weather?.city || WEATHER.city}
+              </p>
               <div className="mt-2 flex items-start gap-1.5">
-                <span className="font-display text-6xl leading-none font-semibold tracking-tight text-ink">{WEATHER.temp}°</span>
+                <span className="font-display text-6xl leading-none font-semibold tracking-tight text-ink">
+                  {Math.round(liveWeather?.weather?.temperature ?? WEATHER.temp)}°
+                </span>
                 <span className="mt-1 text-base font-bold text-mist">C</span>
               </div>
-              <p className="mt-1.5 text-sm font-bold text-ink">{WEATHER.condition} · feels {WEATHER.feelsLike}°C</p>
+              <p className="mt-1.5 text-sm font-bold text-ink">
+                {liveWeather?.weather?.condition_text || WEATHER.condition} · feels{" "}
+                {Math.round(liveWeather?.weather?.apparent_temperature ?? liveWeather?.weather?.temperature ?? WEATHER.feelsLike)}°C
+              </p>
             </div>
             <div className="grid h-16 w-16 place-items-center rounded-2xl bg-leaf-100 text-leaf-500">
               <CloudSun size={34} strokeWidth={1.8} />
@@ -266,7 +279,7 @@ export default function Dashboard() {
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
             {[
-              { label: "Humidity",     value: `${WEATHER.humidity}%`,           icon: Droplets },
+              { label: "Humidity",     value: `${Math.round(liveWeather?.weather?.humidity ?? WEATHER.humidity)}%`, icon: Droplets },
               { label: "Wind",         value: `${WEATHER.wind} km/h`,           icon: Wind },
               { label: "UV index",     value: `${WEATHER.uvIndex} · ${WEATHER.uv}`, icon: Lightbulb },
               { label: "Water target", value: `${(displayWaterGoal/1000).toFixed(1)} L`, icon: Droplet },
@@ -282,7 +295,7 @@ export default function Dashboard() {
           <div className="mt-4 flex items-start gap-2.5 rounded-xl bg-leaf-100 px-3.5 py-3">
             <Quote size={15} className="mt-0.5 shrink-0 text-leaf-600" />
             <p className="text-[13px] leading-relaxed font-semibold text-leaf-800">
-              It's {WEATHER.temp}°C today! Stay hydrated and include water-rich fruits in your meals.
+              {liveWeather?.hydration?.explanation || `It's ${WEATHER.temp}°C today! Stay hydrated and include water-rich fruits in your meals.`}
             </p>
           </div>
           <span className="absolute right-5 bottom-5 hidden items-center gap-1 text-[11px] font-extrabold text-leaf-600 sm:flex">

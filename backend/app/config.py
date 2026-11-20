@@ -22,6 +22,14 @@ class Config:
     # Rate limiting
     RATELIMIT_ENABLED = True
 
+    # Lab and Weather Phase 4
+    LAB_ENCRYPTION_KEY = os.environ.get("LAB_ENCRYPTION_KEY")
+    UPLOAD_FOLDER = os.environ.get(
+        "UPLOAD_FOLDER",
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads", "lab_reports"),
+    )
+    MAX_CONTENT_LENGTH = int(os.environ.get("MAX_CONTENT_LENGTH", 10 * 1024 * 1024))  # 10 MB default
+
     # Support MySQL SSL CA path for hosted providers (e.g. Aiven)
     _ssl_ca = os.environ.get("DB_SSL_CA")
     if _ssl_ca:

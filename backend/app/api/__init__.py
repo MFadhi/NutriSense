@@ -4,9 +4,13 @@ def register_blueprints(app):
     from .logs import logs_bp
     from .water import water_bp
     from .dashboard import dashboard_bp
+    from .lab import lab_bp
+    from .weather import weather_bp
 
     app.register_blueprint(auth_bp, url_prefix="/api/v1/auth")
     app.register_blueprint(foods_bp, url_prefix="/api/v1")
     app.register_blueprint(logs_bp, url_prefix="/api/v1")
     app.register_blueprint(water_bp, url_prefix="/api/v1")
     app.register_blueprint(dashboard_bp, url_prefix="/api/v1")
+    app.register_blueprint(lab_bp, url_prefix="/api/v1")
+    app.register_blueprint(weather_bp, url_prefix="/api/v1")

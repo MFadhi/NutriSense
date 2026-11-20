@@ -3,6 +3,8 @@ from .food import Food, FoodCategory, FoodAlias, Portion
 from .log import FoodLog
 from .water import WaterLog
 from .cache import ExternalProductCache
+from .lab import LabConsent, LabReport, LabResult
+from .weather import WeatherCache
 
 __all__ = [
     "User",
@@ -14,4 +16,8 @@ __all__ = [
     "FoodLog",
     "WaterLog",
     "ExternalProductCache",
+    "LabConsent",
+    "LabReport",
+    "LabResult",
+    "WeatherCache",
 ]

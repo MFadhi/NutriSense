@@ -1,0 +1,273 @@
+{
+  "version": "1.0.0",
+  "disclaimer": "Reference ranges provided are for educational and dietary context only. They do not constitute a medical diagnosis. Please consult a qualified physician or healthcare provider for interpretation.",
+  "parameters": {
+    "fasting_blood_glucose": {
+      "display_name": "Fasting Blood Glucose",
+      "standard_unit": "mg/dL",
+      "alternative_units": {
+        "mmol/L": 18.0182
+      },
+      "ranges": [
+        {
+          "classification": "below_reference",
+          "min": null,
+          "max": 69.9,
+          "label": "Low (Hypoglycemia range)",
+          "explanation": "Values below 70 mg/dL are lower than the standard fasting reference range."
+        },
+        {
+          "classification": "within_reference",
+          "min": 70.0,
+          "max": 99.0,
+          "label": "Normal Fasting Glucose",
+          "explanation": "Normal fasting blood glucose is typically between 70 and 99 mg/dL."
+        },
+        {
+          "classification": "borderline",
+          "min": 99.1,
+          "max": 125.0,
+          "label": "Impaired Fasting Glucose",
+          "explanation": "Fasting blood glucose between 100 and 125 mg/dL indicates elevated fasting glucose."
+        },
+        {
+          "classification": "above_reference",
+          "min": 125.1,
+          "max": null,
+          "label": "Elevated Fasting Glucose",
+          "explanation": "Fasting glucose of 126 mg/dL or higher exceeds normal fasting thresholds."
+        }
+      ],
+      "source": "American Diabetes Association (ADA) Standards of Medical Care"
+    },
+    "hba1c": {
+      "display_name": "HbA1c",
+      "standard_unit": "%",
+      "alternative_units": {},
+      "ranges": [
+        {
+          "classification": "within_reference",
+          "min": null,
+          "max": 5.6,
+          "label": "Normal Glycated Haemoglobin",
+          "explanation": "HbA1c below 5.7% is within normal reference limits for average 3-month blood glucose."
+        },
+        {
+          "classification": "borderline",
+          "min": 5.7,
+          "max": 6.4,
+          "label": "Borderline / Prediabetes range",
+          "explanation": "HbA1c between 5.7% and 6.4% indicates elevated average blood sugar over the last 90 days."
+        },
+        {
+          "classification": "above_reference",
+          "min": 6.5,
+          "max": null,
+          "label": "Elevated Glycated Haemoglobin",
+          "explanation": "HbA1c of 6.5% or higher reflects persistently elevated blood glucose levels."
+        }
+      ],
+      "source": "ADA Clinical Practice Recommendations"
+    },
+    "ldl_cholesterol": {
+      "display_name": "LDL Cholesterol",
+      "standard_unit": "mg/dL",
+      "alternative_units": {
+        "mmol/L": 38.67
+      },
+      "ranges": [
+        {
+          "classification": "within_reference",
+          "min": null,
+          "max": 99.9,
+          "label": "Optimal",
+          "explanation": "LDL cholesterol below 100 mg/dL is generally considered optimal."
+        },
+        {
+          "classification": "borderline",
+          "min": 100.0,
+          "max": 159.9,
+          "label": "Borderline High",
+          "explanation": "LDL cholesterol between 100 and 159 mg/dL is above optimal levels."
+        },
+        {
+          "classification": "above_reference",
+          "min": 160.0,
+          "max": null,
+          "label": "High",
+          "explanation": "LDL cholesterol of 160 mg/dL or greater is elevated."
+        }
+      ],
+      "source": "National Cholesterol Education Program (NCEP) ATP III"
+    },
+    "hdl_cholesterol": {
+      "display_name": "HDL Cholesterol",
+      "standard_unit": "mg/dL",
+      "alternative_units": {
+        "mmol/L": 38.67
+      },
+      "ranges": [
+        {
+          "classification": "below_reference",
+          "min": null,
+          "max": 39.9,
+          "label": "Low HDL (Major risk factor)",
+          "explanation": "HDL cholesterol below 40 mg/dL is considered low protective cholesterol."
+        },
+        {
+          "classification": "within_reference",
+          "min": 40.0,
+          "max": 59.9,
+          "label": "Acceptable",
+          "explanation": "HDL cholesterol between 40 and 59 mg/dL is in the standard acceptable range."
+        },
+        {
+          "classification": "optimal",
+          "min": 60.0,
+          "max": null,
+          "label": "Optimal (Cardioprotective)",
+          "explanation": "HDL cholesterol of 60 mg/dL or higher is considered protective."
+        }
+      ],
+      "source": "NCEP ATP III Guidelines"
+    },
+    "triglycerides": {
+      "display_name": "Triglycerides",
+      "standard_unit": "mg/dL",
+      "alternative_units": {
+        "mmol/L": 88.57
+      },
+      "ranges": [
+        {
+          "classification": "within_reference",
+          "min": null,
+          "max": 149.9,
+          "label": "Normal",
+          "explanation": "Fasting triglycerides below 150 mg/dL are normal."
+        },
+        {
+          "classification": "borderline",
+          "min": 150.0,
+          "max": 199.9,
+          "label": "Borderline High",
+          "explanation": "Triglycerides between 150 and 199 mg/dL are borderline elevated."
+        },
+        {
+          "classification": "above_reference",
+          "min": 200.0,
+          "max": null,
+          "label": "High",
+          "explanation": "Triglycerides of 200 mg/dL or greater are high."
+        }
+      ],
+      "source": "NCEP ATP III Guidelines"
+    },
+    "haemoglobin": {
+      "display_name": "Haemoglobin",
+      "standard_unit": "g/dL",
+      "alternative_units": {
+        "g/L": 0.1
+      },
+      "ranges": [
+        {
+          "classification": "below_reference",
+          "min": null,
+          "max": 11.9,
+          "label": "Low",
+          "explanation": "Haemoglobin below 12.0 g/dL is below standard adult reference levels."
+        },
+        {
+          "classification": "within_reference",
+          "min": 12.0,
+          "max": 17.5,
+          "label": "Normal",
+          "explanation": "Standard adult reference interval is 12.0 to 17.5 g/dL."
+        },
+        {
+          "classification": "above_reference",
+          "min": 17.6,
+          "max": null,
+          "label": "Elevated",
+          "explanation": "Haemoglobin above 17.5 g/dL is above typical reference ranges."
+        }
+      ],
+      "source": "World Health Organization (WHO) Haemoglobin Concentrations"
+    },
+    "vitamin_d": {
+      "display_name": "Vitamin D (25-OH)",
+      "standard_unit": "ng/mL",
+      "alternative_units": {
+        "nmol/L": 0.4
+      },
+      "ranges": [
+        {
+          "classification": "below_reference",
+          "min": null,
+          "max": 19.9,
+          "label": "Deficient",
+          "explanation": "25-hydroxyvitamin D below 20 ng/mL is considered deficient."
+        },
+        {
+          "classification": "borderline",
+          "min": 20.0,
+          "max": 29.9,
+          "label": "Insufficient",
+          "explanation": "Vitamin D between 20 and 29 ng/mL indicates insufficient levels."
+        },
+        {
+          "classification": "within_reference",
+          "min": 30.0,
+          "max": 100.0,
+          "label": "Sufficient",
+          "explanation": "Vitamin D between 30 and 100 ng/mL is generally considered sufficient."
+        },
+        {
+          "classification": "above_reference",
+          "min": 100.1,
+          "max": null,
+          "label": "Elevated / Potential Toxicity",
+          "explanation": "Vitamin D above 100 ng/mL exceeds optimal levels."
+        }
+      ],
+      "source": "Endocrine Society Clinical Practice Guidelines"
+    },
+    "vitamin_b12": {
+      "display_name": "Vitamin B12",
+      "standard_unit": "pg/mL",
+      "alternative_units": {
+        "pmol/L": 1.355
+      },
+      "ranges": [
+        {
+          "classification": "below_reference",
+          "min": null,
+          "max": 199.9,
+          "label": "Low / Deficient",
+          "explanation": "Vitamin B12 below 200 pg/mL is classified as deficient."
+        },
+        {
+          "classification": "borderline",
+          "min": 200.0,
+          "max": 299.9,
+          "label": "Borderline",
+          "explanation": "Vitamin B12 between 200 and 300 pg/mL is borderline low."
+        },
+        {
+          "classification": "within_reference",
+          "min": 300.0,
+          "max": 900.0,
+          "label": "Normal",
+          "explanation": "Standard normal reference range is 300 to 900 pg/mL."
+        },
+        {
+          "classification": "above_reference",
+          "min": 900.1,
+          "max": null,
+          "label": "Elevated",
+          "explanation": "Vitamin B12 above 900 pg/mL exceeds normal physiological levels."
+        }
+      ],
+      "source": "National Institutes of Health (NIH) Office of Dietary Supplements"
+    }
+  }
+}
