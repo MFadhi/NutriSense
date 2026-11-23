@@ -41,10 +41,11 @@ const MACRO_META = [
 ];
 
 const QUICK_ACTIONS = [
-  { to: "/nutrition",   icon: UtensilsCrossed, label: "Log Meals",        desc: "Track daily intake" },
-  { to: "/lab-reports", icon: FileUp,          label: "Upload Lab Report", desc: "Get nutrition insights" },
-  { to: "/pantry",      icon: PackagePlus,      label: "Add Pantry Items",  desc: "Track ingredients" },
-  { to: "/recipes",     icon: ChefHat,         label: "Explore Recipes",    desc: "Cook from your pantry" },
+  { to: "/nutrition",    icon: UtensilsCrossed, label: "Log Meals",        desc: "Track daily intake" },
+  { to: "/meal-planner", icon: CalendarDays,    label: "Meal Planner",     desc: "Personalized nutrition plan" },
+  { to: "/lab-reports",  icon: FileUp,          label: "Upload Lab Report", desc: "Get nutrition insights" },
+  { to: "/pantry",       icon: PackagePlus,     label: "Add Pantry Items",  desc: "Track ingredients" },
+  { to: "/recipes",      icon: ChefHat,         label: "Explore Recipes",    desc: "Cook from your pantry" },
 ];
 
 export default function Dashboard() {

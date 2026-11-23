@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import DashboardLayout from "./layouts/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
 import Nutrition from "./pages/Nutrition";
+import MealPlanner from "./pages/MealPlanner";
 import LabReports from "./pages/LabReports";
 import Weather from "./pages/Weather";
 import Pantry from "./pages/Pantry";
@@ -17,6 +18,7 @@ export default function App() {
       <Route element={<DashboardLayout />}>
         <Route index element={<Dashboard />} />
         <Route path="nutrition" element={<Nutrition />} />
+        <Route path="meal-planner" element={<MealPlanner />} />
         <Route path="lab-reports" element={<LabReports />} />
         <Route path="weather" element={<Weather />} />
         <Route path="pantry" element={<Pantry />} />

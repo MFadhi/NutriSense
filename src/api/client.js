@@ -111,5 +111,6 @@ export async function request(path, opts = {}, retry = true) {
 
 export const get  = (path, opts) => request(path, { method: 'GET', ...opts });
 export const post = (path, body, opts) => request(path, { method: 'POST',  body: JSON.stringify(body), ...opts });
+export const put  = (path, body, opts) => request(path, { method: 'PUT',   body: JSON.stringify(body), ...opts });
 export const patch = (path, body, opts) => request(path, { method: 'PATCH', body: JSON.stringify(body), ...opts });
 export const del  = (path, opts) => request(path, { method: 'DELETE', ...opts });

@@ -420,3 +420,226 @@ export const mockWeather = {
     ],
   }),
 };
+
+let _mockMealPlans = [];
+
+export const mockMealPlanner = {
+  getPreferences: async () => ({
+    meals_per_day: 4,
+    include_snacks: true,
+    diet_type: "veg",
+    liked_tags: [],
+    avoided_tags: [],
+    allergies: [],
+  }),
+  updatePreferences: async (body) => body,
+  generateDaily: async (body = {}) => ({
+    day: body.day || "Today",
+    meals: {
+      breakfast: {
+        meal_key: "breakfast",
+        label: "Breakfast",
+        target_kcal: 500,
+        total_kcal: 480,
+        total_protein_g: 18,
+        total_carbs_g: 65,
+        total_fat_g: 12,
+        total_fibre_g: 7,
+        reason: "Complex carbohydrates and dietary fiber for morning energy.",
+        items: [
+          {
+            food_id: 1,
+            food_name: "Idli with Sambar",
+            diet: "veg",
+            portion_label: "2 idlis + 1 katori sambar",
+            portion_grams: 180,
+            kcal: 480,
+            protein_g: 18,
+            carbs_g: 65,
+            fat_g: 12,
+            fibre_g: 7,
+          },
+        ],
+      },
+      lunch: {
+        meal_key: "lunch",
+        label: "Lunch",
+        target_kcal: 700,
+        total_kcal: 690,
+        total_protein_g: 32,
+        total_carbs_g: 80,
+        total_fat_g: 22,
+        total_fibre_g: 11,
+        reason: "Rich in protein and soluble fibre for sustained afternoon satiety.",
+        items: [
+          {
+            food_id: 2,
+            food_name: "Palak Paneer with Roti",
+            diet: "veg",
+            portion_label: "1 bowl + 2 rotis",
+            portion_grams: 250,
+            kcal: 690,
+            protein_g: 32,
+            carbs_g: 80,
+            fat_g: 22,
+            fibre_g: 11,
+          },
+        ],
+      },
+      snack: {
+        meal_key: "snack",
+        label: "Evening Snack",
+        target_kcal: 200,
+        total_kcal: 195,
+        total_protein_g: 8,
+        total_carbs_g: 24,
+        total_fat_g: 6,
+        total_fibre_g: 4,
+        reason: "Light digestive snack with antioxidants.",
+        items: [
+          {
+            food_id: 3,
+            food_name: "Sprouted Moong Chaat",
+            diet: "veg",
+            portion_label: "1 cup",
+            portion_grams: 120,
+            kcal: 195,
+            protein_g: 8,
+            carbs_g: 24,
+            fat_g: 6,
+            fibre_g: 4,
+          },
+        ],
+      },
+      dinner: {
+        meal_key: "dinner",
+        label: "Dinner",
+        target_kcal: 600,
+        total_kcal: 585,
+        total_protein_g: 24,
+        total_carbs_g: 72,
+        total_fat_g: 16,
+        total_fibre_g: 9,
+        reason: "Light, easily digestible whole foods.",
+        items: [
+          {
+            food_id: 4,
+            food_name: "Dal Tadka with Steamed Rice",
+            diet: "veg",
+            portion_label: "1 katori dal + 1 cup rice",
+            portion_grams: 220,
+            kcal: 585,
+            protein_g: 24,
+            carbs_g: 72,
+            fat_g: 16,
+            fibre_g: 9,
+          },
+        ],
+      },
+    },
+    totals: { kcal: 1950, protein_g: 82, carbs_g: 241, fat_g: 56, fibre_g: 31 },
+    targets: { kcal: 2000, protein_g: 85, carbs_g: 250, fat_g: 60, fibre_g: 28 },
+  }),
+  generateWeekly: async (body = {}) => {
+    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map(
+      (day) => ({
+        day,
+        meals: {
+          breakfast: {
+            meal_key: "breakfast",
+            label: "Breakfast",
+            total_kcal: 480,
+            total_protein_g: 18,
+            total_carbs_g: 65,
+            total_fat_g: 12,
+            total_fibre_g: 7,
+            reason: "Wholesome breakfast fuel.",
+            items: [{ food_id: 1, food_name: `${day} Poha / Idli`, portion_label: "1 plate", kcal: 480, protein_g: 18, carbs_g: 65, fat_g: 12, fibre_g: 7 }],
+          },
+          lunch: {
+            meal_key: "lunch",
+            label: "Lunch",
+            total_kcal: 690,
+            total_protein_g: 32,
+            total_carbs_g: 80,
+            total_fat_g: 22,
+            total_fibre_g: 11,
+            reason: "High protein meal with vegetables.",
+            items: [{ food_id: 2, food_name: `${day} Dal Khichdi & Curd`, portion_label: "1 bowl", kcal: 690, protein_g: 32, carbs_g: 80, fat_g: 22, fibre_g: 11 }],
+          },
+          snack: {
+            meal_key: "snack",
+            label: "Evening Snack",
+            total_kcal: 195,
+            total_protein_g: 8,
+            total_carbs_g: 24,
+            total_fat_g: 6,
+            total_fibre_g: 4,
+            reason: "Fresh fruits & nuts.",
+            items: [{ food_id: 3, food_name: "Mixed Fruit Chaat", portion_label: "1 cup", kcal: 195, protein_g: 8, carbs_g: 24, fat_g: 6, fibre_g: 4 }],
+          },
+          dinner: {
+            meal_key: "dinner",
+            label: "Dinner",
+            total_kcal: 585,
+            total_protein_g: 24,
+            total_carbs_g: 72,
+            total_fat_g: 16,
+            total_fibre_g: 9,
+            reason: "Balanced light dinner.",
+            items: [{ food_id: 4, food_name: "Paneer Bhurji with Phulka", portion_label: "2 phulkas + bhurji", kcal: 585, protein_g: 24, carbs_g: 72, fat_g: 16, fibre_g: 9 }],
+          },
+        },
+        totals: { kcal: 1950, protein_g: 82, carbs_g: 241, fat_g: 56, fibre_g: 31 },
+      })
+    );
+    return {
+      plan_type: "weekly",
+      days,
+      averages: { kcal: 1950, protein_g: 82, carbs_g: 241, fat_g: 56 },
+      targets: { kcal: 2000, protein_g: 85, carbs_g: 250, fat_g: 60, fibre_g: 28 },
+    };
+  },
+  replaceMeal: async (body) => ({
+    alternatives: [
+      {
+        meal_key: body.meal_key || "lunch",
+        label: (body.meal_key || "lunch").capitalize(),
+        total_kcal: 680,
+        total_protein_g: 28,
+        total_carbs_g: 76,
+        total_fat_g: 20,
+        total_fibre_g: 9,
+        reason: "Alternative high-protein meal balanced for your goals.",
+        items: [
+          {
+            food_id: 10,
+            food_name: "Rajma Masala with Brown Rice",
+            portion_label: "1 bowl + 1 cup rice",
+            portion_grams: 240,
+            kcal: 680,
+            protein_g: 28,
+            carbs_g: 76,
+            fat_g: 20,
+            fibre_g: 9,
+          },
+        ],
+      },
+    ],
+  }),
+  savePlan: async (body) => {
+    const saved = { id: Date.now(), ...body, created_at: new Date().toISOString() };
+    _mockMealPlans.unshift(saved);
+    return saved;
+  },
+  listPlans: async () => _mockMealPlans,
+  getPlan: async (id) => _mockMealPlans.find((p) => p.id === Number(id)) || null,
+  setActivePlan: async (id) => {
+    _mockMealPlans.forEach((p) => (p.is_active = p.id === Number(id)));
+    return { message: "Active plan updated" };
+  },
+  deletePlan: async (id) => {
+    _mockMealPlans = _mockMealPlans.filter((p) => p.id !== Number(id));
+    return { message: "Plan deleted" };
+  },
+};

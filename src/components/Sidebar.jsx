@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
   UtensilsCrossed,
+  CalendarDays,
   FlaskConical,
   CloudSun,
   Package,
@@ -19,6 +20,7 @@ import { ProgressBar } from "./ui";
 export const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/nutrition", label: "My Nutrition", icon: UtensilsCrossed },
+  { to: "/meal-planner", label: "Meal Planner", icon: CalendarDays },
   { to: "/lab-reports", label: "Lab Reports", icon: FlaskConical },
   { to: "/weather", label: "Weather Intelligence", icon: CloudSun },
   { to: "/pantry", label: "My Pantry", icon: Package },
