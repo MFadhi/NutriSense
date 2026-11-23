@@ -5,6 +5,7 @@ from .water import WaterLog
 from .cache import ExternalProductCache
 from .lab import LabConsent, LabReport, LabResult
 from .weather import WeatherCache
+from .meal_plan import MealPlanPreference, MealPlan
 
 __all__ = [
     "User",
@@ -20,4 +21,6 @@ __all__ = [
     "LabReport",
     "LabResult",
     "WeatherCache",
+    "MealPlanPreference",
+    "MealPlan",
 ]

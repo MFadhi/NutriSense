@@ -237,6 +237,34 @@ NutriLens integrates `Flask-Limiter` to protect both backend resources and third
 
 ---
 
+## Phase 5: Personalized Meal Planner
+
+### 1. Meal Planner Architecture
+- **Rule-Based Recommendation Engine** (`app/services/meal_planner_service.py`):
+  - Calorie and macro target distribution across 3 or 4 daily meals (breakfast, lunch, dinner, snack).
+  - Strict allergy avoidance (filtering out milk, gluten, nuts, eggs, etc. based on profile).
+  - Diet hierarchy filtering (`veg`, `vegan`, `eggetarian`, `nonveg`).
+  - Household portion scaling with realistic gram estimates.
+  - Multi-day variety to prevent meal repetition across Monday–Sunday.
+- **Phase 4 Laboratory Integration**:
+  - Confirmed lab test results (low haemoglobin, elevated glucose, low B12/vitamin D) boost relevant Indian food items (spinach, dals, oats, curd, paneer) and provide transparent educational reasoning.
+- **Meal Swapping & Customization**:
+  - Allows swapping any meal with 3 tailored alternatives in one click.
+- **Saved Plans Management**:
+  - Saved daily and weekly plans with complete nutritional and portion snapshots.
+
+### 2. Phase 5 API Endpoints
+- `GET, PUT /api/v1/meal-planner/preferences`
+- `POST /api/v1/meal-planner/generate/daily`
+- `POST /api/v1/meal-planner/generate/weekly`
+- `POST /api/v1/meal-planner/replace-meal`
+- `POST /api/v1/meal-planner/save`
+- `GET /api/v1/meal-planner`
+- `GET, DELETE /api/v1/meal-planner/<id>`
+- `PUT /api/v1/meal-planner/<id>/active`
+
+---
+
 ## Notes
 - Meal values in the API: `breakfast`, `lunch`, `snack`, `dinner` (singular "snack", vs frontend "snacks")
 - Nutrient math uses Python `Decimal` with `ROUND_HALF_UP` and quantizes to 2 decimals

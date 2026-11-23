@@ -122,9 +122,9 @@ def me():
 
 
 # ---------------------------------------------------------------------------
-# PATCH /me  — update profile fields
+# PATCH / PUT /me  — update profile fields
 # ---------------------------------------------------------------------------
-@auth_bp.route("/me", methods=["PATCH"])
+@auth_bp.route("/me", methods=["PATCH", "PUT"])
 @jwt_required()
 def update_me():
     user_id = int(get_jwt_identity())
