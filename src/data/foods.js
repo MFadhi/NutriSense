@@ -13,8 +13,6 @@ import {
 export const IMAGES = {
   banner:
     "https://images.pexels.com/photos/4638384/pexels-photo-4638384.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200",
-  avatar:
-    "https://images.pexels.com/photos/16105584/pexels-photo-16105584.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
   oats:
     "https://images.pexels.com/photos/12091676/pexels-photo-12091676.png?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
   oatsRecipe:
