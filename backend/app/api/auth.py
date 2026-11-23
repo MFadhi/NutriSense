@@ -138,6 +138,34 @@ def update_me():
         profile = UserProfile(user_id=user.id, allergies=[])
         db.session.add(profile)
 
+    # Map friendly client aliases
+    if "sex" in data and "gender" not in data:
+        data["gender"] = data["sex"]
+
+    if "dob" in data and ("age" not in data or data["age"] is None) and data["dob"]:
+        try:
+            from datetime import date, datetime
+            birth_date = datetime.strptime(str(data["dob"])[:10], "%Y-%m-%d").date()
+            today = date.today()
+            age_calc = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+            if 0 <= age_calc <= 150:
+                data["age"] = age_calc
+        except Exception:
+            pass
+
+    act_aliases = {
+        "sedentary": "sedentary",
+        "light": "lightly_active",
+        "lightly_active": "lightly_active",
+        "moderate": "moderately_active",
+        "moderately_active": "moderately_active",
+        "active": "very_active",
+        "very_active": "very_active",
+        "extra_active": "extra_active",
+    }
+    if "activity_level" in data and data["activity_level"] in act_aliases:
+        data["activity_level"] = act_aliases[data["activity_level"]]
+
     allowed = {
         "diet_type", "allergies", "age", "gender",
         "height_cm", "weight_kg", "activity_level", "goal",

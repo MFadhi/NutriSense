@@ -32,10 +32,10 @@ const GOAL_LABELS = {
 
 const ACTIVITY_MAP = [
   { id: "sedentary", label: "Sedentary (desk job, little exercise)" },
-  { id: "light", label: "Lightly active (1-3 days/week)" },
-  { id: "moderate", label: "Moderately active (3-5 days/week)" },
-  { id: "active", label: "Very active (6-7 days/week)" },
-  { id: "very_active", label: "Extra active / Athlete" },
+  { id: "lightly_active", label: "Lightly active (1-3 days/week)" },
+  { id: "moderately_active", label: "Moderately active (3-5 days/week)" },
+  { id: "very_active", label: "Very active (6-7 days/week)" },
+  { id: "extra_active", label: "Extra active / Athlete" },
 ];
 
 const PREF_ROWS = [
@@ -58,7 +58,7 @@ export default function Settings() {
   // Form states matching API
   const [heightCm, setHeightCm] = useState(profile.height || 170);
   const [weightKg, setWeightKg] = useState(profile.weight || 65);
-  const [activityLevel, setActivityLevel] = useState("moderate");
+  const [activityLevel, setActivityLevel] = useState("moderately_active");
   const [dietType, setDietType] = useState("veg");
   const [goal, setGoal] = useState("maintain");
   const [sex, setSex] = useState("other");
@@ -79,11 +79,22 @@ export default function Settings() {
         const p = meData.profile || {};
         if (p.height_cm) setHeightCm(p.height_cm);
         if (p.weight_kg) setWeightKg(p.weight_kg);
-        if (p.activity_level) setActivityLevel(p.activity_level);
+        if (p.activity_level) {
+          const act = p.activity_level === "moderate" ? "moderately_active"
+            : p.activity_level === "light" ? "lightly_active"
+            : p.activity_level === "active" ? "very_active"
+            : p.activity_level;
+          setActivityLevel(act);
+        }
         if (p.diet_type) setDietType(p.diet_type);
         if (p.goal) setGoal(p.goal);
-        if (p.sex) setSex(p.sex);
-        if (p.dob) setDob(p.dob);
+        if (p.gender || p.sex) setSex(p.gender || p.sex);
+        if (p.age) {
+          const y = new Date().getFullYear() - p.age;
+          setDob(`${y}-01-01`);
+        } else if (p.dob) {
+          setDob(p.dob);
+        }
       }
 
       // Try fetching dashboard daily to see calculated targets or missing fields
@@ -119,13 +130,28 @@ export default function Settings() {
     setSaving(true);
     setError(null);
 
+    let calculatedAge;
+    if (dob) {
+      const birth = new Date(dob);
+      if (!isNaN(birth.getTime())) {
+        const today = new Date();
+        calculatedAge = today.getFullYear() - birth.getFullYear();
+        const m = today.getMonth() - birth.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+          calculatedAge--;
+        }
+      }
+    }
+
     const payload = {
       height_cm: Number(heightCm) || undefined,
       weight_kg: Number(weightKg) || undefined,
       activity_level: activityLevel,
       diet_type: dietType,
       goal,
+      gender: sex,
       sex,
+      age: calculatedAge,
       dob: dob || undefined,
     };
 

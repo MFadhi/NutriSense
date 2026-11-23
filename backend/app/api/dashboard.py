@@ -27,9 +27,20 @@ def daily_summary():
 
     user = db.session.get(User, user_id)
     if not user or not is_profile_complete(user.profile):
+        p = user.profile if user else None
+        missing = []
+        if not p or not (p.age and int(p.age) > 0):
+            missing.append("age")
+        if not p or not (p.gender and str(p.gender).strip()):
+            missing.append("gender")
+        if not p or not (p.height_cm and float(p.height_cm) > 0):
+            missing.append("height_cm")
+        if not p or not (p.weight_kg and float(p.weight_kg) > 0):
+            missing.append("weight_kg")
         return error_response(
             "profile_incomplete",
-            "User profile is incomplete. Please set age, gender, height, and weight to view dashboard targets.",
+            f"User profile is incomplete. Please set {', '.join(missing)} to view dashboard targets.",
+            details={"missing_fields": missing},
             status=409,
         )
 
@@ -139,9 +150,20 @@ def weekly_summary():
 
     user = db.session.get(User, user_id)
     if not user or not is_profile_complete(user.profile):
+        p = user.profile if user else None
+        missing = []
+        if not p or not (p.age and int(p.age) > 0):
+            missing.append("age")
+        if not p or not (p.gender and str(p.gender).strip()):
+            missing.append("gender")
+        if not p or not (p.height_cm and float(p.height_cm) > 0):
+            missing.append("height_cm")
+        if not p or not (p.weight_kg and float(p.weight_kg) > 0):
+            missing.append("weight_kg")
         return error_response(
             "profile_incomplete",
-            "User profile is incomplete. Please set age, gender, height, and weight to view dashboard targets.",
+            f"User profile is incomplete. Please set {', '.join(missing)} to view dashboard targets.",
+            details={"missing_fields": missing},
             status=409,
         )
 

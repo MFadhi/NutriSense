@@ -206,7 +206,9 @@ export default function Topbar({ onMenu }) {
                 onClick={() => setProfileOpen((o) => !o)}
                 className="flex items-center gap-2.5 rounded-xl border border-line bg-white py-1.5 pr-2.5 pl-1.5 shadow-sm transition-all hover:border-leaf-300 hover:bg-leaf-75"
               >
-                <img src={profile.avatar} alt={profile.name} className="h-7 w-7 rounded-lg object-cover" />
+                <div className="grid h-7 w-7 place-items-center rounded-lg bg-leaf-100 text-leaf-700">
+                  <User size={15} />
+                </div>
                 <span className="hidden text-xs font-extrabold text-ink sm:block">{profile.name.split(" ")[0]}</span>
                 <ChevronDown size={13} className="text-mist" />
               </button>
