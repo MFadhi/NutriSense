@@ -6,6 +6,7 @@ from .cache import ExternalProductCache
 from .lab import LabConsent, LabReport, LabResult
 from .weather import WeatherCache
 from .meal_plan import MealPlanPreference, MealPlan
+from .pantry_grocery import PantryItem, GroceryItem, PurchaseTransaction
 
 __all__ = [
     "User",
@@ -23,4 +24,7 @@ __all__ = [
     "WeatherCache",
     "MealPlanPreference",
     "MealPlan",
+    "PantryItem",
+    "GroceryItem",
+    "PurchaseTransaction",
 ]

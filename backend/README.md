@@ -265,6 +265,49 @@ NutriLens integrates `Flask-Limiter` to protect both backend resources and third
 
 ---
 
+## Phase 6: Pantry Management, Recipe Recommendations & Automatic Grocery-to-Pantry Synchronization
+
+### 1. Pantry Management
+- Search and stock ingredients from database or custom kitchen ingredients.
+- Quantity tracking with standard measurement units (`g`, `kg`, `ml`, `L`, `pcs`, `pack`, `bunch`, `jar`).
+- Purchase dates, expiry dates, and storage notes.
+- Expiry notifications: Dashboard cards tracking expiring soon (<= 3 days) and expired items with visual badges.
+- Ingredient consumption: Deduct portions used or mark fully consumed.
+
+### 2. Recipe Recommendations
+- Pantry-matching algorithm computing available vs missing ingredients.
+- Match percentage calculation and ready-to-cook filter.
+- One-click missing ingredient export to smart grocery list.
+
+### 3. Smart Grocery List & Automatic Pantry Synchronization
+- Categorized and aisle-grouped shopping list.
+- **Purchase Confirmation Interface**:
+  - Modal prompts for confirmed purchased quantity, unit, purchase date, and expiry date.
+  - Partial purchase support: records actual quantity bought.
+- **Atomic Synchronization**:
+  - Automatically increases existing pantry quantity or creates a new pantry entry within an atomic database transaction.
+  - Unit conversion and quantity merging (e.g. 500 g + 2 kg -> 2.5 kg; 200 ml + 1 L -> 1.2 L).
+  - Separate batch support when expiry dates differ.
+  - Transaction rollback prevents partial or corrupted inventory updates.
+  - Duplicate purchase prevention with transaction records (`PurchaseTransaction`).
+  - Purchase correction endpoint (`PATCH /api/v1/grocery/<id>/purchase-correction`) for quantity adjustments without duplicate pantry increments.
+  - Unpurchasing preserves pantry inventory independence.
+
+### 4. Phase 6 API Endpoints
+- `GET, POST /api/v1/pantry`
+- `GET /api/v1/pantry/dashboard`
+- `PATCH, DELETE /api/v1/pantry/<id>`
+- `POST /api/v1/pantry/<id>/consume`
+- `GET, POST /api/v1/grocery`
+- `POST /api/v1/grocery/batch`
+- `PATCH, DELETE /api/v1/grocery/<id>`
+- `DELETE /api/v1/grocery/purchased`
+- `POST /api/v1/grocery/<id>/purchase` (Atomic synchronization)
+- `POST /api/v1/grocery/<id>/unpurchase`
+- `PATCH /api/v1/grocery/<id>/purchase-correction`
+
+---
+
 ## Notes
 - Meal values in the API: `breakfast`, `lunch`, `snack`, `dinner` (singular "snack", vs frontend "snacks")
 - Nutrient math uses Python `Decimal` with `ROUND_HALF_UP` and quantizes to 2 decimals

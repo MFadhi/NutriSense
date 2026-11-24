@@ -23,6 +23,7 @@ import { getAccessToken, setAccessToken, setRefreshToken, clearTokens, hasSessio
 import * as AuthAPI from "../api/auth";
 import * as LogsAPI from "../api/logs";
 import * as WaterAPI from "../api/water";
+import * as PantryGroceryAPI from "../api/pantryGrocery";
 import { localToday, nowUtcIso } from "../utils/date";
 
 const AppContext = createContext(null);
@@ -159,6 +160,7 @@ export function AppProvider({ children }) {
 
   /* --------------------------------------------------------- Local-only state */
   const [pantry, setPantry] = useLocalStorage("nutrisense_pantry", DEFAULT_PANTRY);
+  const [pantryDashboard, setPantryDashboard] = useState({ total_items: 0, expiring_soon: 0, expired: 0, recently_added: [] });
   const [shopping, setShopping] = useLocalStorage("nutrisense_shopping", []);
   const [reports, setReports] = useLocalStorage("nutrisense_reports", []);
   const [notifications, setNotifications] = useLocalStorage("nutrisense_notifs", DEFAULT_NOTIFICATIONS);
@@ -251,6 +253,42 @@ export function AppProvider({ children }) {
     }
   }, [auth.isAuthenticated, sessionRestored, loadWaterForDate]);
 
+  /* ------------------------------------------- Load pantry & grocery from API */
+  const loadPantry = useCallback(async () => {
+    if (!auth.isAuthenticated) return;
+    try {
+      const items = await PantryGroceryAPI.getPantryItems();
+      if (Array.isArray(items)) {
+        setPantry(items);
+      }
+      const dash = await PantryGroceryAPI.getPantryDashboard();
+      if (dash && typeof dash === "object") {
+        setPantryDashboard(dash);
+      }
+    } catch {
+      // Keep local
+    }
+  }, [auth.isAuthenticated, setPantry]);
+
+  const loadGrocery = useCallback(async () => {
+    if (!auth.isAuthenticated) return;
+    try {
+      const items = await PantryGroceryAPI.getGroceryItems();
+      if (Array.isArray(items)) {
+        setShopping(items);
+      }
+    } catch {
+      // Keep local
+    }
+  }, [auth.isAuthenticated, setShopping]);
+
+  useEffect(() => {
+    if (auth.isAuthenticated && sessionRestored) {
+      loadPantry();
+      loadGrocery();
+    }
+  }, [auth.isAuthenticated, sessionRestored, loadPantry, loadGrocery]);
+
   /* ------------------------------ Auth -------------------------------- */
   const login = useCallback(
     async (token, refreshToken, user) => {
@@ -266,6 +304,8 @@ export function AppProvider({ children }) {
         const today = localToday();
         loadDiaryForDate(today);
         loadWaterForDate(today);
+        loadPantry();
+        loadGrocery();
       } catch {
         if (user) {
           setProfile((p) => ({
@@ -276,7 +316,7 @@ export function AppProvider({ children }) {
         }
       }
     },
-    [setAuth, setProfile, loadDiaryForDate, loadWaterForDate]
+    [setAuth, setProfile, loadDiaryForDate, loadWaterForDate, loadPantry, loadGrocery]
   );
 
   const logout = useCallback(() => {
@@ -428,21 +468,99 @@ export function AppProvider({ children }) {
 
   /* ------------------------------- Pantry ----------------------------- */
   const addIngredient = useCallback(
-    (item) => {
+    async (item) => {
+      if (auth.isAuthenticated) {
+        try {
+          const created = await PantryGroceryAPI.addPantryItem({
+            name: item.name,
+            category: item.category,
+            quantity: Number(item.qty || item.quantity) || 1,
+            unit: item.unit || "pcs",
+            purchase_date: item.purchase_date || null,
+            expiry_date: item.expiry_date || null,
+            notes: item.notes || null,
+            food_id: item.food_id || null,
+          });
+          setPantry((p) => [created, ...p]);
+          loadPantry();
+          toast(`${item.name} added to pantry`);
+          return;
+        } catch (err) {
+          console.warn("API addIngredient failed:", err);
+        }
+      }
       setPantry((p) => [...p, { id: uid("p"), tags: [norm(item.name)], ...item }]);
       toast(`${item.name} added to pantry`);
     },
-    [setPantry, toast]
+    [auth.isAuthenticated, setPantry, loadPantry, toast]
   );
-  const updateIngredient = useCallback((id, patch) => {
-    setPantry((p) => p.map((x) => (x.id === id ? { ...x, ...patch } : x)));
-  }, [setPantry]);
+
+  const updateIngredient = useCallback(
+    async (id, patch) => {
+      if (auth.isAuthenticated && typeof id === "number") {
+        try {
+          const updated = await PantryGroceryAPI.updatePantryItem(id, {
+            name: patch.name,
+            category: patch.category,
+            quantity: patch.qty !== undefined ? Number(patch.qty) : (patch.quantity !== undefined ? Number(patch.quantity) : undefined),
+            unit: patch.unit,
+            expiry_date: patch.expiry_date,
+            purchase_date: patch.purchase_date,
+            notes: patch.notes,
+          });
+          setPantry((p) => p.map((x) => (x.id === id ? { ...x, ...updated } : x)));
+          loadPantry();
+          return;
+        } catch (err) {
+          console.warn("API updateIngredient failed:", err);
+        }
+      }
+      setPantry((p) => p.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+    },
+    [auth.isAuthenticated, setPantry, loadPantry]
+  );
+
+  const consumeIngredient = useCallback(
+    async (id, amount = null) => {
+      if (auth.isAuthenticated && typeof id === "number") {
+        try {
+          const res = await PantryGroceryAPI.consumePantryItem(id, amount);
+          if (res.is_consumed) {
+            setPantry((p) => p.filter((x) => x.id !== id));
+            toast("Ingredient marked as consumed");
+          } else {
+            setPantry((p) => p.map((x) => (x.id === id ? { ...x, ...res } : x)));
+            toast(`Used ${amount} ${res.unit || ""}`);
+          }
+          loadPantry();
+          return;
+        } catch (err) {
+          console.warn("API consume failed:", err);
+        }
+      }
+      setPantry((p) => p.filter((x) => x.id !== id));
+      toast("Ingredient consumed");
+    },
+    [auth.isAuthenticated, setPantry, loadPantry, toast]
+  );
+
   const removeIngredient = useCallback(
-    (id) => {
+    async (id) => {
+      if (auth.isAuthenticated && typeof id === "number") {
+        try {
+          await PantryGroceryAPI.deletePantryItem(id);
+          setPantry((p) => p.filter((x) => x.id !== id));
+          loadPantry();
+          toast("Ingredient removed");
+          return;
+        } catch (err) {
+          console.warn("API remove failed:", err);
+        }
+      }
       setPantry((p) => p.filter((x) => x.id !== id));
       toast("Ingredient removed");
     },
-    [setPantry, toast]
+    [auth.isAuthenticated, setPantry, loadPantry, toast]
   );
 
   const haveIngredient = useCallback(
@@ -450,9 +568,10 @@ export function AppProvider({ children }) {
       const m = norm(match);
       return pantry.some(
         (p) =>
-          norm(p.name).includes(m) ||
+          !p.is_consumed &&
+          (norm(p.name).includes(m) ||
           m.includes(norm(p.name)) ||
-          (p.tags || []).some((t) => m.includes(norm(t)) || norm(t).includes(m))
+          (p.tags || []).some((t) => m.includes(norm(t)) || norm(t).includes(m)))
       );
     },
     [pantry]
@@ -475,45 +594,160 @@ export function AppProvider({ children }) {
 
   /* ----------------------------- Shopping ----------------------------- */
   const addShoppingItem = useCallback(
-    ({ name, category, qty, source }) => {
+    async ({ name, category, qty, unit, source }) => {
       const cat = category || guessCategory(name);
+      const parsedQty = parseFloat(qty) || 1;
+      const parsedUnit = unit || (typeof qty === "string" && qty.includes(" ") ? qty.split(" ").slice(1).join(" ") : "pcs");
+      if (auth.isAuthenticated) {
+        try {
+          const created = await PantryGroceryAPI.addGroceryItem({
+            name,
+            category: cat,
+            quantity: parsedQty,
+            unit: parsedUnit,
+            notes: source,
+          });
+          setShopping((s) => [created, ...s]);
+          toast(`${name} added to list`);
+          return;
+        } catch (err) {
+          console.warn("API addGroceryItem failed:", err);
+        }
+      }
       setShopping((s) => {
-        if (s.some((x) => norm(x.name) === norm(name) && !x.purchased)) return s;
-        return [...s, { id: uid("sh"), name, category: cat, qty: qty || "1 unit", purchased: false, source }];
+        if (s.some((x) => norm(x.name) === norm(name) && !x.purchased && !x.is_purchased)) return s;
+        return [...s, { id: uid("sh"), name, category: cat, qty: qty || "1 unit", unit: parsedUnit, quantity: parsedQty, purchased: false, is_purchased: false, source }];
       });
+      toast(`${name} added to list`);
     },
-    [setShopping]
+    [auth.isAuthenticated, setShopping, toast]
   );
 
   const addMissingToShopping = useCallback(
-    (items, source) => {
-      const existing = new Set(shopping.filter((x) => !x.purchased).map((x) => norm(x.name)));
+    async (items, source) => {
+      if (auth.isAuthenticated) {
+        try {
+          const batchPayload = items.map((i) => ({
+            name: i.name,
+            category: guessCategory(i.name),
+            quantity: parseFloat(i.qty) || 1,
+            unit: i.unit || (typeof i.qty === "string" && i.qty.includes(" ") ? i.qty.split(" ").slice(1).join(" ") : "pcs"),
+            notes: source,
+          }));
+          const createdList = await PantryGroceryAPI.addGroceryBatch(batchPayload, source);
+          setShopping((s) => [...createdList, ...s]);
+          toast(createdList.length > 0 ? `${createdList.length} items added to shopping list` : "Already on your list");
+          return createdList.length;
+        } catch (err) {
+          console.warn("API addGroceryBatch failed:", err);
+        }
+      }
+      const existing = new Set(shopping.filter((x) => !x.purchased && !x.is_purchased).map((x) => norm(x.name)));
       const fresh = [];
       for (const i of items) {
         const key = norm(i.name);
         if (existing.has(key)) continue;
         existing.add(key);
-        fresh.push({ id: uid("sh"), name: i.name, category: guessCategory(i.name), qty: i.qty || "1 unit", purchased: false, source });
+        fresh.push({ id: uid("sh"), name: i.name, category: guessCategory(i.name), qty: i.qty || "1 unit", purchased: false, is_purchased: false, source });
       }
       if (fresh.length) setShopping((s) => [...s, ...fresh]);
       toast(fresh.length > 0 ? `${fresh.length} item${fresh.length > 1 ? "s" : ""} added to shopping list` : "Already on your shopping list");
       return fresh.length;
     },
-    [shopping, setShopping, toast]
+    [auth.isAuthenticated, shopping, setShopping, toast]
+  );
+
+  const purchaseGroceryItemAndSync = useCallback(
+    async (id, purchasePayload) => {
+      if (auth.isAuthenticated && typeof id === "number") {
+        const res = await PantryGroceryAPI.purchaseAndSyncToPantry(id, purchasePayload);
+        await Promise.all([loadGrocery(), loadPantry()]);
+        toast(`Synced ${res.pantry_item?.name || "item"} to pantry!`);
+        return res;
+      }
+      // Local fallback
+      setShopping((s) => s.map((x) => (x.id === id ? { ...x, purchased: true, is_purchased: true } : x)));
+      const target = shopping.find((x) => x.id === id);
+      if (target) {
+        addIngredient({
+          name: target.name,
+          category: target.category,
+          qty: purchasePayload.purchased_quantity || target.quantity || 1,
+          unit: purchasePayload.unit || target.unit || "pcs",
+        });
+      }
+      toast("Marked as purchased and added to pantry");
+      return { message: "Item purchased and added to pantry" };
+    },
+    [auth.isAuthenticated, shopping, loadGrocery, loadPantry, setShopping, addIngredient, toast]
+  );
+
+  const unpurchaseGroceryItem = useCallback(
+    async (id) => {
+      if (auth.isAuthenticated && typeof id === "number") {
+        await PantryGroceryAPI.unpurchaseGroceryItem(id);
+        await loadGrocery();
+        toast("Item marked as unpurchased");
+        return;
+      }
+      setShopping((s) => s.map((x) => (x.id === id ? { ...x, purchased: false, is_purchased: false } : x)));
+      toast("Item marked as unpurchased");
+    },
+    [auth.isAuthenticated, loadGrocery, setShopping, toast]
+  );
+
+  const correctGroceryPurchase = useCallback(
+    async (id, newQty) => {
+      if (auth.isAuthenticated && typeof id === "number") {
+        const res = await PantryGroceryAPI.correctPurchaseQuantity(id, newQty);
+        await Promise.all([loadGrocery(), loadPantry()]);
+        toast("Purchase quantity corrected");
+        return res;
+      }
+    },
+    [auth.isAuthenticated, loadGrocery, loadPantry, toast]
   );
 
   const toggleShoppingItem = useCallback(
-    (id) => setShopping((s) => s.map((x) => (x.id === id ? { ...x, purchased: !x.purchased } : x))),
+    (id) => setShopping((s) => s.map((x) => (x.id === id ? { ...x, purchased: !x.purchased, is_purchased: !x.purchased } : x))),
     [setShopping]
   );
+
   const removeShoppingItem = useCallback(
-    (id) => setShopping((s) => s.filter((x) => x.id !== id)),
-    [setShopping]
+    async (id) => {
+      if (auth.isAuthenticated && typeof id === "number") {
+        try {
+          await PantryGroceryAPI.deleteGroceryItem(id);
+          setShopping((s) => s.filter((x) => x.id !== id));
+          toast("Item removed");
+          return;
+        } catch (err) {
+          console.warn("API delete grocery failed:", err);
+        }
+      }
+      setShopping((s) => s.filter((x) => x.id !== id));
+      toast("Item removed");
+    },
+    [auth.isAuthenticated, setShopping, toast]
   );
-  const clearPurchased = useCallback(() => {
-    setShopping((s) => s.filter((x) => !x.purchased));
-    toast("Cleared purchased items");
-  }, [setShopping, toast]);
+
+  const clearPurchased = useCallback(
+    async () => {
+      if (auth.isAuthenticated) {
+        try {
+          await PantryGroceryAPI.clearPurchasedGrocery();
+          setShopping((s) => s.filter((x) => !x.purchased && !x.is_purchased));
+          toast("Cleared purchased items");
+          return;
+        } catch (err) {
+          console.warn("API clear purchased failed:", err);
+        }
+      }
+      setShopping((s) => s.filter((x) => !x.purchased && !x.is_purchased));
+      toast("Cleared purchased items");
+    },
+    [auth.isAuthenticated, setShopping, toast]
+  );
 
   /* --------------------------- Notifications --------------------------- */
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -569,9 +803,10 @@ export function AppProvider({ children }) {
     diary, totals, addDiaryItem, removeDiaryItem, resolveFood,
     loadDiaryForDate,
     water, waterLogs, addWater, resetWater, loadWaterForDate,
-    pantry, addIngredient, updateIngredient, removeIngredient,
+    pantry, pantryDashboard, loadPantry, addIngredient, updateIngredient, consumeIngredient, removeIngredient,
     haveIngredient, recipeStats,
-    shopping, addShoppingItem, addMissingToShopping, toggleShoppingItem, removeShoppingItem, clearPurchased,
+    shopping, loadGrocery, addShoppingItem, addMissingToShopping, toggleShoppingItem, removeShoppingItem, clearPurchased,
+    purchaseGroceryItemAndSync, unpurchaseGroceryItem, correctGroceryPurchase,
     reports, setReports,
     notifications, unreadCount, markAllRead,
     toasts, toast,

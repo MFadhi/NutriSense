@@ -15,9 +15,9 @@ export default function RecipeModal({ recipe, onClose }) {
       <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
         {[
           { icon: Flame, label: "Calories", value: `${recipe.calories}`, unit: "kcal" },
-          { icon: Zap, label: "Protein", value: recipe.protein, unit: "g" },
-          { icon: Clock, label: "Prep time", value: recipe.time, unit: "min" },
-          { icon: Users, label: "Servings", value: recipe.servings, unit: "" },
+          { icon: Zap, label: "Protein", value: `${recipe.protein}`, unit: "g" },
+          { icon: Clock, label: "Carbs", value: `${recipe.carbs || 0}`, unit: "g" },
+          { icon: Users, label: "Fat", value: `${recipe.fat || 0}`, unit: "g" },
         ].map(({ icon: Icon, label, value, unit }) => (
           <div key={label} className="rounded-xl bg-leaf-75 px-3 py-2.5 text-center">
             <Icon size={14} className="mx-auto text-leaf-500" />
@@ -29,13 +29,18 @@ export default function RecipeModal({ recipe, onClose }) {
         ))}
       </div>
 
-      {/* Pantry availability */}
+      {/* Pantry availability & Match Percentage */}
       <div className="mt-5">
         <div className="mb-1.5 flex items-center justify-between text-xs font-bold">
-          <span className="text-ink">Pantry match</span>
-          <span className="text-leaf-600">
-            {stats.have}/{stats.total} ingredients available
-          </span>
+          <span className="text-ink">Pantry Match</span>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-leaf-100 px-2 py-0.5 text-[11px] font-extrabold text-leaf-800">
+              {Math.round((stats.have / stats.total) * 100)}% Match
+            </span>
+            <span className="text-leaf-600">
+              {stats.have}/{stats.total} ingredients
+            </span>
+          </div>
         </div>
         <ProgressBar value={stats.have} max={stats.total} height={7} />
       </div>

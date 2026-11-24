@@ -102,7 +102,7 @@ export default function Recipes() {
                 <p className="mt-0.5 text-[11px] font-semibold text-mist truncate">{r.tags.join(" · ")}</p>
                 <div className="mt-3">
                   <div className="mb-1 flex justify-between text-[10.5px] font-extrabold">
-                    <span className="text-mist uppercase tracking-wide">Pantry match</span>
+                    <span className="text-mist uppercase tracking-wide">Pantry match ({Math.round((s.have / s.total) * 100)}%)</span>
                     <span className="text-leaf-600 font-extrabold">{s.have}/{s.total}</span>
                   </div>
                   <ProgressBar value={s.have} max={s.total} height={6} />

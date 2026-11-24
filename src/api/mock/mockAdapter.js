@@ -643,3 +643,162 @@ export const mockMealPlanner = {
     return { message: "Plan deleted" };
   },
 };
+
+let _mockPantryStore = [];
+let _mockGroceryStore = [];
+
+export const mockPantry = {
+  getPantryItems: async (params = {}) => {
+    let res = _mockPantryStore.filter((i) => !i.is_consumed);
+    if (params.category && params.category !== "All") {
+      res = res.filter((i) => i.category === params.category);
+    }
+    if (params.search) {
+      res = res.filter((i) => i.name.toLowerCase().includes(params.search.toLowerCase()));
+    }
+    return res;
+  },
+  getPantryDashboard: async () => {
+    const active = _mockPantryStore.filter((i) => !i.is_consumed);
+    const now = new Date();
+    const soon = new Date(now.getTime() + 3 * 86400000);
+    let expired = 0;
+    let expiring_soon = 0;
+    active.forEach((i) => {
+      if (i.expiry_date) {
+        const d = new Date(i.expiry_date);
+        if (d < now) expired++;
+        else if (d <= soon) expiring_soon++;
+      }
+    });
+    return {
+      total_items: active.length,
+      expiring_soon,
+      expired,
+      recently_added: active.slice(0, 5),
+    };
+  },
+  addPantryItem: async (data) => {
+    const item = {
+      id: Date.now(),
+      is_consumed: false,
+      created_at: new Date().toISOString(),
+      ...data,
+      quantity: Number(data.quantity) || 1,
+    };
+    _mockPantryStore.unshift(item);
+    return item;
+  },
+  updatePantryItem: async (id, data) => {
+    const idx = _mockPantryStore.findIndex((i) => i.id === Number(id));
+    if (idx !== -1) {
+      _mockPantryStore[idx] = { ..._mockPantryStore[idx], ...data };
+      return _mockPantryStore[idx];
+    }
+    throw new Error("Not found");
+  },
+  consumePantryItem: async (id, amount = null) => {
+    const item = _mockPantryStore.find((i) => i.id === Number(id));
+    if (!item) throw new Error("Not found");
+    if (amount !== null) {
+      item.quantity = Math.max(0, item.quantity - Number(amount));
+      if (item.quantity === 0) item.is_consumed = true;
+    } else {
+      item.is_consumed = true;
+    }
+    return item;
+  },
+  deletePantryItem: async (id) => {
+    _mockPantryStore = _mockPantryStore.filter((i) => i.id !== Number(id));
+    return { message: "Deleted" };
+  },
+};
+
+export const mockGrocery = {
+  getGroceryItems: async () => _mockGroceryStore,
+  addGroceryItem: async (data) => {
+    const item = {
+      id: Date.now(),
+      is_purchased: false,
+      created_at: new Date().toISOString(),
+      ...data,
+      quantity: Number(data.quantity) || 1,
+    };
+    _mockGroceryStore.unshift(item);
+    return item;
+  },
+  addGroceryBatch: async (items, source) => {
+    const added = items.map((i) => ({
+      id: Date.now() + Math.random(),
+      is_purchased: false,
+      notes: source,
+      created_at: new Date().toISOString(),
+      ...i,
+      quantity: Number(i.quantity) || 1,
+    }));
+    _mockGroceryStore.push(...added);
+    return added;
+  },
+  updateGroceryItem: async (id, data) => {
+    const idx = _mockGroceryStore.findIndex((i) => i.id === Number(id));
+    if (idx !== -1) {
+      _mockGroceryStore[idx] = { ..._mockGroceryStore[idx], ...data };
+      return _mockGroceryStore[idx];
+    }
+    throw new Error("Not found");
+  },
+  deleteGroceryItem: async (id) => {
+    _mockGroceryStore = _mockGroceryStore.filter((i) => i.id !== Number(id));
+    return { message: "Deleted" };
+  },
+  clearPurchasedGrocery: async () => {
+    _mockGroceryStore = _mockGroceryStore.filter((i) => !i.is_purchased);
+    return { message: "Cleared" };
+  },
+  purchaseAndSyncToPantry: async (id, data) => {
+    const gItem = _mockGroceryStore.find((i) => i.id === Number(id));
+    if (!gItem) throw new Error("Not found");
+    if (gItem.is_purchased) throw new Error("Already purchased");
+    gItem.is_purchased = true;
+    gItem.purchased_quantity = data.purchased_quantity || gItem.quantity;
+
+    // Check if ingredient already in pantry
+    let pItem = _mockPantryStore.find((p) => p.name.toLowerCase() === gItem.name.toLowerCase() && !p.is_consumed);
+    if (pItem) {
+      pItem.quantity += Number(gItem.purchased_quantity);
+    } else {
+      pItem = {
+        id: Date.now(),
+        name: gItem.name,
+        category: gItem.category,
+        quantity: Number(gItem.purchased_quantity),
+        unit: data.unit || gItem.unit || "pcs",
+        expiry_date: data.expiry_date || null,
+        is_consumed: false,
+      };
+      _mockPantryStore.unshift(pItem);
+    }
+    gItem.pantry_item_id = pItem.id;
+    return {
+      message: "Synced to pantry",
+      grocery_item: gItem,
+      pantry_item: pItem,
+      transaction: { id: Date.now(), purchased_quantity: gItem.purchased_quantity },
+    };
+  },
+  unpurchaseGroceryItem: async (id) => {
+    const item = _mockGroceryStore.find((i) => i.id === Number(id));
+    if (item) {
+      item.is_purchased = false;
+      item.purchased_quantity = null;
+    }
+    return item;
+  },
+  correctPurchaseQuantity: async (id, newQty) => {
+    const item = _mockGroceryStore.find((i) => i.id === Number(id));
+    if (item) {
+      item.purchased_quantity = Number(newQty);
+    }
+    return { grocery_item: item };
+  },
+};

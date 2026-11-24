@@ -7,6 +7,7 @@ def register_blueprints(app):
     from .lab import lab_bp
     from .weather import weather_bp
     from .meal_planner import meal_planner_bp
+    from .pantry_grocery import pantry_grocery_bp
 
     app.register_blueprint(auth_bp, url_prefix="/api/v1/auth")
     app.register_blueprint(foods_bp, url_prefix="/api/v1")
@@ -16,3 +17,4 @@ def register_blueprints(app):
     app.register_blueprint(lab_bp, url_prefix="/api/v1")
     app.register_blueprint(weather_bp, url_prefix="/api/v1")
     app.register_blueprint(meal_planner_bp, url_prefix="/api/v1")
+    app.register_blueprint(pantry_grocery_bp, url_prefix="/api/v1")
